@@ -8,4 +8,5 @@ google-genai>=2.0
 yfinance>=1.0
 scipy>=1.14
 streamlit>=1.50
+lxml>=5.0
 pytest>=8.0

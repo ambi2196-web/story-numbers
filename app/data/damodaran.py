@@ -137,8 +137,10 @@ def benchmarks(industry: str, region: str = "Global") -> dict:
         "cost_of_equity": wacc[_col(wacc_df, "Cost of Equity")],
         "cost_of_capital": wacc[coc_col],
         "debt_to_capital": wacc[_col(wacc_df, "D/(D+E)")],
-        "effective_tax_rate": tax[_col(tax_df, "Average across only money-making", "Average effective tax rate",
-                                        "Aggregate tax rate")],
+        # The money-making-firms average is blank for some small groups; fall back to the aggregate rate.
+        "effective_tax_rate": next((tax[c] for c in (_col(tax_df, "Average across only money-making"),
+                                                     _col(tax_df, "Aggregate tax rate"))
+                                    if c and pd.notna(tax[c])), float("nan")),
     }
     return {"industry": industry, "region": region} | {k: float(v) for k, v in values.items()}
 
