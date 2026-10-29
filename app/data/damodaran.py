@@ -71,6 +71,35 @@ def _parse_country_file() -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+# Header cells of each wacc file: the market-wide inputs behind that region's cost of capital.
+_MARKET_LABELS = {"treasury_rate": "long term treasury bond rate", "equity_risk_premium": "risk premium to use for equity",
+                  "default_spread": "global default spread", "marginal_tax_rate": "enter the marginal tax rate",
+                  "inflation_usd": "expected inflation rate in us $", "inflation_local": "expected inflation rate in"}
+
+
+def _parse_market_inputs(file_name: str) -> dict:
+    raw = pd.read_excel(RAW_DIR / file_name, sheet_name="Industry Averages", header=None, engine="calamine")
+    out = {}
+    for _, row in raw.head(20).iterrows():
+        label = str(row.iloc[0]).lower()
+        value = next((v for v in row.iloc[1:] if isinstance(v, (int, float)) and pd.notna(v)), None)
+        key = next((k for k, text in _MARKET_LABELS.items() if text in label and k not in out), None)
+        if key and value is not None:
+            out[key] = float(value)
+    return out
+
+
+def _write_market_inputs(regions: list[str]) -> None:
+    rows = [{"region": r} | _parse_market_inputs(_file_name("wacc", r)) for r in regions]
+    pd.DataFrame(rows).to_csv(PARSED_DIR / "market_inputs.csv", index=False)
+
+
+def market_inputs(region: str = "Global") -> dict:
+    """Treasury rate, ERP, default spread, marginal tax and inflation Damodaran used for a region's data."""
+    df = pd.read_csv(PARSED_DIR / "market_inputs.csv").set_index("region")
+    return {k: float(v) for k, v in df.loc[region].dropna().items()}
+
+
 def refresh(regions: list[str] | None = None) -> None:
     """Download and parse every dataset for the given regions (default: all)."""
     PARSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -80,9 +109,10 @@ def refresh(regions: list[str] | None = None) -> None:
             _download(name)
             _parse_industry_file(name).to_csv(PARSED_DIR / f"{dataset}_{region}.csv", index=False)
             print(f"  {dataset:8} {region}")
+    _write_market_inputs(regions or list(REGIONS))
     _download(COUNTRY_FILE)
     _parse_country_file().to_csv(PARSED_DIR / "country_risk.csv", index=False)
-    print("  country risk premiums")
+    print("  market inputs and country risk premiums")
 
 
 def load_industry(dataset: str, region: str = "Global") -> pd.DataFrame:

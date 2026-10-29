@@ -1,50 +1,28 @@
 """Excel export: the company's 5-year financials with live ratio formulas and Damodaran industry benchmarks.
 
-Sheets: Summary | Financials | Ratios (formulas) | Industry Benchmarks | Raw - Income | Raw - Balance | Raw - Cash Flow
+Sheets: Summary | DCF (when a valuation is passed) | Financials | Ratios (formulas) | Industry Benchmarks |
+Raw - Income | Raw - Balance | Raw - Cash Flow
 """
 from datetime import date
 from io import BytesIO
 
 import pandas as pd
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.worksheet import Worksheet
 
 from app.data import damodaran
 from app.data.collector import LABELS, Company
 from app.data.ratios import RATIOS, excel_formula
+from app.excel.dcf_sheet import add_dcf_sheet
+from app.excel.workbook_style import FORMATS, INPUT_BLUE, header as _header, title as _title, widths as _widths
 
-NAVY, LIGHT, INPUT_BLUE = "1F3864", "D9E2F3", "0000FF"
-HEADER_FONT = Font(bold=True, color="FFFFFF")
-HEADER_FILL = PatternFill("solid", fgColor=NAVY)
-SECTION_FILL = PatternFill("solid", fgColor=LIGHT)
-FORMATS = {"pct": "0.0%", "money": "#,##0;(#,##0)", "x": '0.00"x"'}
 FIRST_YEAR_COL = 3  # A = key, B = label, C.. = years
 
 
 def units(currency: str | None) -> tuple[float, str]:
     """Indian companies are shown in ₹ crore (as in their annual reports); everything else in millions."""
     return (1e7, "₹ crore") if currency == "INR" else (1e6, f"{currency or ''} millions".strip())
-
-
-def _header(ws: Worksheet, row: int, values: list) -> None:
-    for col, v in enumerate(values, 1):
-        cell = ws.cell(row, col, v)
-        cell.font, cell.fill = HEADER_FONT, HEADER_FILL
-        cell.alignment = Alignment(horizontal="center" if col >= FIRST_YEAR_COL else "left")
-
-
-def _title(ws: Worksheet, text: str, subtitle: str) -> None:
-    ws["A1"] = text
-    ws["A1"].font = Font(bold=True, size=14, color=NAVY)
-    ws["A2"] = subtitle
-    ws["A2"].font = Font(italic=True, color="595959")
-
-
-def _widths(ws: Worksheet, widths: dict[str, float]) -> None:
-    for col, w in widths.items():
-        ws.column_dimensions[col].width = w
 
 
 def _financials_sheet(wb: Workbook, c: Company, scale: float, unit: str) -> dict[str, int]:
@@ -232,7 +210,8 @@ def _raw_sheet(wb: Workbook, name: str, df: pd.DataFrame, scale: float, unit: st
     ws.freeze_panes = "B5"
 
 
-def build(c: Company) -> bytes:
+def build(c: Company, setup=None, valuation=None, implied: dict | None = None) -> bytes:
+    """Workbook bytes; pass the engine's Setup and Valuation to add the live DCF sheet."""
     scale, unit = units(c.profile.get("currency"))
     wb = Workbook()
     fin_rows = _financials_sheet(wb, c, scale, unit)
@@ -243,6 +222,8 @@ def build(c: Company) -> bytes:
         if key in c.raw:
             _raw_sheet(wb, name, c.raw[key], scale, unit)
     wb.move_sheet("Summary", offset=-wb.sheetnames.index("Summary"))
+    if setup is not None and valuation is not None:
+        add_dcf_sheet(wb, setup, valuation, scale, unit, implied)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

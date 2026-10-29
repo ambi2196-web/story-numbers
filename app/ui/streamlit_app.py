@@ -10,6 +10,8 @@ import streamlit as st
 from app.data import damodaran
 from app.data.collector import LABELS, CompanyNotFound, collect, resolve, search
 from app.data.ratios import RATIO_FORMATS, RATIO_LABELS, compute
+from app.engine.dcf import solve, value
+from app.engine.defaults import status_quo
 from app.excel.workbook import build, units
 from app.llm import LLMError, get_provider
 
@@ -100,8 +102,78 @@ with tab_bench:
     except KeyError as exc:
         st.info(str(exc))
 
-st.download_button("⬇ Download Excel (live formulas)", data=build(company),
-                   file_name=f"{p['symbol']}_financials.xlsx", type="primary",
+# ---------------------------------------------------------------- valuation (status quo story)
+st.subheader("What is it worth if nothing changes?")
+setup, valuation, implied = None, None, None
+try:
+    setup = status_quo(company)
+except (KeyError, IndexError) as exc:
+    st.info(f"No valuation: {exc}")
+for msg in setup.warnings if setup else []:
+    st.warning(msg)
+if setup and not setup.is_financial:
+    a0, w = setup.assumptions, setup.wacc
+    with st.expander("Change the assumptions", expanded=False):
+        c1, c2, c3, c4 = st.columns(4)
+        growth = c1.number_input("Revenue growth, years 1-5 (%)", value=round(a0.growth_y2_5 * 100, 1), step=1.0)
+        margin = c2.number_input("Target operating margin (%)", value=round(a0.target_margin * 100, 1), step=0.5)
+        s2c = c3.number_input("Sales-to-capital (x)", value=round(a0.sales_to_capital_1_5, 2), step=0.1, min_value=0.05)
+        wacc = c4.number_input("Cost of capital (%)", value=round(a0.cost_of_capital * 100, 2), step=0.25)
+        st.caption("Defaults: " + " · ".join(f"**{k.replace('_', ' ')}**: {v}" for k, v in a0.sources.items()))
+    a = a0  # untouched boxes keep the exact defaults (the boxes show them rounded)
+    if growth != round(a0.growth_y2_5 * 100, 1):
+        a = a.with_(growth_y1=growth / 100, growth_y2_5=growth / 100)
+    if margin != round(a0.target_margin * 100, 1):
+        a = a.with_(target_margin=margin / 100)
+    if s2c != round(a0.sales_to_capital_1_5, 2):
+        a = a.with_(sales_to_capital_1_5=s2c, sales_to_capital_6_10=s2c)
+    if wacc != round(a0.cost_of_capital * 100, 2):
+        a = a.with_(cost_of_capital=wacc / 100, terminal_cost_of_capital=min(a0.terminal_cost_of_capital, wacc / 100))
+    try:
+        valuation = value(a)
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+    cur = p.get("price_currency") or ""
+    cols = st.columns(4)
+    cols[0].metric(f"Value per share ({cur})", f"{valuation.value_per_share:,.2f}")
+    cols[1].metric(f"Price ({cur})", f"{a.price:,.2f}" if a.price else "n/a")
+    cols[2].metric("Value vs price", f"{valuation.upside:+.0%}" if valuation.upside is not None else "n/a")
+    cols[3].metric(f"Cost of capital ({w.currency})", f"{a.cost_of_capital:.2%}")
+    st.caption(f"Cost of capital: risk-free {w.riskfree_local:.2%} ({w.currency}) · levered beta {w.levered_beta:.2f} · "
+               f"equity risk premium {w.equity_risk_premium:.2%} · synthetic rating {w.rating} · debt "
+               f"{w.debt_weight:.0%} of capital. Terminal: growth {a.terminal_growth:.2%}, cost of capital "
+               f"{a.terminal_cost_of_capital:.2%}." + (f" Terminal value is {valuation.terminal_share:.0%} of the "
+               f"value." if 0 <= valuation.terminal_share <= 1 else ""))
+
+    if a.price:
+        st.markdown("**What today's price implies** (one driver at a time, everything else unchanged)")
+        bench = damodaran.benchmarks(p["damodaran_industry"], p["region"])
+        implied = {d: solve(a, d) for d in ("growth", "target_margin", "sales_to_capital", "terminal_roic")}
+        roic_now = a.terminal_roic if a.terminal_roic is not None else a.terminal_cost_of_capital
+        rows = [("Revenue growth, years 1-5", implied["growth"], a.growth_y2_5, None, "{:.1%}"),
+                ("Target operating margin", implied["target_margin"], a.target_margin, bench["operating_margin"], "{:.1%}"),
+                ("Sales-to-capital", implied["sales_to_capital"], a.sales_to_capital_1_5, bench["sales_to_capital"],
+                 "{:.2f}x"),
+                ("Return on capital after year 10", implied["terminal_roic"], roic_now, None, "{:.1%}")]
+        st.dataframe(pd.DataFrame(
+            [{"Driver": n, "Market-implied": f.format(x) if x is not None else "not reachable alone",
+              "Status quo": f.format(cur_v), "Industry": f.format(ind) if ind is not None and pd.notna(ind) else ""}
+             for n, x, cur_v, ind, f in rows]).set_index("Driver"), use_container_width=True)
+
+    with st.expander("10-year projection"):
+        t = valuation.table.copy()
+        pct_rows = ["Revenue growth", "Operating margin", "Tax rate", "Cost of capital"]
+        shown = pd.DataFrame({col: [("" if pd.isna(x) else f"{x:.1%}") if r in pct_rows else
+                                    ("" if pd.isna(x) else f"{x:.2f}" if r in ("Sales-to-capital",
+                                     "Cumulative discount factor") else f"{x / scale:,.0f}")
+                                    for r, x in t[col].items()] for col in t.columns}, index=t.index)
+        st.dataframe(shown, use_container_width=True)
+        st.caption(f"{unit}. FCFF = after-tax operating income - reinvestment; discounted at the cost of capital.")
+
+st.download_button("⬇ Download Excel (live formulas, incl. DCF)",
+                   data=build(company, setup if valuation else None, valuation, implied),
+                   file_name=f"{p['symbol']}_valuation.xlsx", type="primary",
                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 st.info("Next: tell a story (Mode A) or set a target (Mode B). Coming in Phases 4 and 5.", icon="🧭")
 st.caption("Educational tool, not investment advice.")

@@ -24,6 +24,23 @@ Smoke test:
 .venv/Scripts/python -m app.llm --provider gemini --json
 ```
 
+### Run the app
+```bash
+.venv/Scripts/python -m streamlit run app/ui/streamlit_app.py
+```
+Or from the command line (writes `output/<TICKER>_<date>.xlsx`):
+```bash
+.venv/Scripts/python -m app.collect "Maruti Suzuki"
+```
+
+### Company data (all free)
+| Source | Used for |
+|---|---|
+| NSE equity list | Search suggestions with NSE's official names (refreshed weekly) |
+| Yahoo Finance | Prices, profile, balance-sheet detail, non-Indian search |
+| Screener.in | Indian companies: 5+ years of headline financials in ₹ crore |
+| SEC EDGAR | US companies: 10-K figures for the 5th year. Set `SEC_USER_AGENT` in `.env` to include your contact email, as SEC asks |
+
 ### Industry data
 Damodaran's datasets are already parsed into `data/damodaran/parsed/`. Refresh them each January:
 ```bash

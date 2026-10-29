@@ -43,7 +43,7 @@ def equities() -> pd.DataFrame:
 
 def search(query: str, limit: int = 6) -> list[dict]:
     """NSE equities matching a name or symbol, best first: exact symbol, name prefix, all words, then fuzzy."""
-    q = query.strip()
+    q = query.strip().removesuffix(".NS").removesuffix(".ns")
     if not q:
         return []
     qwords = [w for w in _words(q) if w not in _NOISE] or _words(q)

@@ -1,9 +1,10 @@
 """Company search bar backend: name -> ticker -> up to 5 years of standardised financials.
 
-Yahoo Finance (via yfinance) covers NSE/BSE and US listings for free; for Indian companies Screener.in adds a
-fifth year and the as-reported revenue line.
+Yahoo Finance (via yfinance) covers NSE/BSE and US listings for free. It usually has only 4 complete years, so
+Screener.in (Indian companies) and SEC EDGAR 10-K filings (US companies) add the fifth year and as-filed lines.
 Everything is cached for a day so repeat lookups cost nothing.
 """
+import warnings
 from dataclasses import dataclass, field
 from io import StringIO
 
@@ -11,8 +12,10 @@ import pandas as pd
 import yfinance as yf
 from pydantic import BaseModel
 
-from app.data import cache, nse, screener
+from app.data import cache, edgar, nse, screener
 from app.data.industry_map import to_damodaran_industry, to_region
+
+warnings.filterwarnings("ignore", module="yfinance")  # pandas deprecation noise from inside yfinance
 
 MAX_YEARS = 5
 # Prefer the primary listing when Yahoo returns several (e.g. NSE over BSE for Indian companies).
@@ -87,9 +90,11 @@ class _TickerGuess(BaseModel):
 def search(query: str, limit: int = 6) -> list[dict]:
     """Equity matches for a free-text name, best first: NSE's own names first, then other Yahoo listings."""
     nse_hits = nse.search(query, limit)
-    seen = {m["name"].lower().rstrip(". ") for m in nse_hits}
-    others = [m for m in _yahoo_search(query, limit)
-              if not m["symbol"].endswith((".NS", ".BO")) and m["name"].lower().rstrip(". ") not in seen]
+    names = {m["name"].lower().rstrip(". ") for m in nse_hits}
+    symbols = {m["symbol"].removesuffix(".NS") for m in nse_hits}
+    # Yahoo adds non-Indian listings and BSE-only stocks; drop its copies of companies NSE already listed.
+    others = [m for m in _yahoo_search(query, limit) if m["name"].lower().rstrip(". ") not in names
+              and m["symbol"].split(".")[0] not in symbols and not (nse_hits and m["symbol"].endswith(".NS"))]
     return (nse_hits + others)[:limit]
 
 
@@ -151,18 +156,48 @@ def _standardise(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return df
 
 
-def _merge(yahoo: pd.DataFrame, screener_df: pd.DataFrame | None) -> tuple[pd.DataFrame, dict]:
-    """Each field comes from ONE source for every year (Screener first when it has the field), so growth
-    rates are never distorted by mixing definitions. Returns the last MAX_YEARS years and per-field sources."""
-    frames = [yahoo] + ([screener_df] if screener_df is not None else [])
+def _merge(yahoo: pd.DataFrame, primary: pd.DataFrame | None, name: str = "Screener.in") -> tuple[pd.DataFrame, dict]:
+    """Each field comes from ONE source for every year (the primary source, Screener.in or SEC EDGAR, first when
+    it has the field), so growth rates are never distorted by mixing definitions. Returns the last MAX_YEARS
+    years and per-field sources."""
+    frames = [yahoo] + ([primary] if primary is not None else [])
     years = sorted({y for df in frames for y in df.columns if pd.notna(df.loc["revenue"].get(y))})[-MAX_YEARS:]
     rows, sources = {}, {}
     for key, _, _, _ in FIELDS:
-        if screener_df is not None and key in screener_df.index and screener_df.loc[key].reindex(years).notna().any():
-            rows[key], sources[key] = screener_df.loc[key].reindex(years), "Screener.in"
+        if primary is not None and key in primary.index and primary.loc[key].reindex(years).notna().any():
+            rows[key], sources[key] = primary.loc[key].reindex(years), name
         else:
             rows[key], sources[key] = yahoo.loc[key].reindex(years), "Yahoo Finance"
     return pd.DataFrame(rows).T.astype(float), sources
+
+
+_NOT_MONEY = ("share", "rate", "ratio")
+
+
+def _needs_fx(yahoo: pd.DataFrame, screener_df: pd.DataFrame) -> bool:
+    """Yahoo's currency label is unreliable (it says USD for HCL Tech's INR numbers), so compare revenues:
+    a Screener/Yahoo ratio far above 1 for the same years means Yahoo's numbers are in a foreign currency."""
+    ratio = (screener_df.loc["revenue"] / yahoo.loc["revenue"]).dropna()
+    return bool(len(ratio)) and ratio.median() > 10
+
+
+def _convert(raw: dict[str, pd.DataFrame], src: str, dst: str) -> dict[str, pd.DataFrame]:
+    """Restate Yahoo's statements in another currency at each fiscal year-end's exchange rate.
+    Needed when Yahoo reports an Indian company in USD (Infosys, HCL Tech) but Screener.in reports in INR."""
+    dates = [pd.Timestamp(c) for df in raw.values() for c in df.columns]
+    hist = yf.Ticker(f"{src}{dst}=X").history(start=min(dates) - pd.Timedelta(days=10),
+                                               end=max(dates) + pd.Timedelta(days=3))["Close"]
+    if hist.empty:
+        raise CompanyNotFound(f"No {src}/{dst} exchange rate history to restate the statements.")
+    hist.index = hist.index.tz_localize(None)
+    out = {}
+    for name, df in raw.items():
+        rates = pd.Series({c: float(hist.asof(pd.Timestamp(c))) for c in df.columns})
+        money = [r for r in df.index if not any(w in str(r).lower() for w in _NOT_MONEY)]
+        df = df.copy()
+        df.loc[money] = df.loc[money].astype(float).mul(rates, axis=1)
+        out[name] = df
+    return out
 
 
 def _by_fiscal_year(df: pd.DataFrame) -> pd.DataFrame:
@@ -208,12 +243,26 @@ def collect(query: str, refresh: bool = False, llm=None) -> Company:
     raw = {"income": ticker.income_stmt, "balance": ticker.balance_sheet, "cashflow": ticker.cash_flow}
     if raw["income"] is None or raw["income"].empty:
         raise CompanyNotFound(f"Yahoo Finance has no annual statements for {symbol}.")
+    info = ticker.info
     screener_df = screener.fetch(symbol)
-    financials, sources = _merge(_standardise(raw), screener_df)
+    reported = info.get("financialCurrency")
+    converted = bool(screener_df is not None and reported and reported != "INR"
+                     and _needs_fx(_standardise(raw), screener_df))
+    if converted:
+        raw = _convert(raw, reported, "INR")  # Screener is always INR; one currency per company
+    if screener_df is not None:
+        info = info | {"financialCurrency": "INR"}
+    sec_df = edgar.fetch(symbol) if screener_df is None else None
+    if sec_df is not None and info.get("financialCurrency", "USD") != "USD":
+        sec_df = None  # only US-dollar filers, so the two sources share a currency
+    primary, name = (screener_df, "Screener.in") if screener_df is not None else (sec_df, "SEC EDGAR")
+    financials, sources = _merge(_standardise(raw), primary, name)
     raw = {k: _by_fiscal_year(v) for k, v in raw.items()}
-    profile = _profile(symbol, ticker.info, list(financials.columns))
+    profile = _profile(symbol, info, list(financials.columns))
+    if converted:
+        profile["fx_note"] = f"Yahoo reports in {reported}; restated in INR at each fiscal year-end rate."
     profile["field_sources"] = sources
-    profile["source"] = "Screener.in + Yahoo Finance" if screener_df is not None else "Yahoo Finance"
+    profile["source"] = f"{name} + Yahoo Finance" if primary is not None else "Yahoo Finance"
     company = Company(profile, financials, raw)
     cache.put(key, company.to_cache())
     return company
