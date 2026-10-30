@@ -16,6 +16,7 @@ from app.data.collector import LABELS, Company
 from app.data.ratios import RATIOS, excel_formula
 from app.excel.dcf_sheet import add_dcf_sheet
 from app.excel.story_sheet import add_story_sheet
+from app.excel.target_sheet import add_target_sheet
 from app.excel.your_story_sheet import add_your_story_sheet, growth_refs
 from app.excel.workbook_style import FORMATS, INPUT_BLUE, header as _header, title as _title, widths as _widths
 
@@ -213,10 +214,11 @@ def _raw_sheet(wb: Workbook, name: str, df: pd.DataFrame, scale: float, unit: st
 
 
 def build(c: Company, setup=None, valuation=None, implied: dict | None = None, profile=None, story=None,
-          your_story=None, card=None, score: int | None = None) -> bytes:
+          your_story=None, card=None, score: int | None = None, target_pack: tuple | None = None) -> bytes:
     """Workbook bytes; pass the engine's Setup and Valuation to add the live DCF sheet, the AI profile and
     market story to add the Story sheet, and a Mode A StoryResult (with its scorecard) to add the Your story
-    sheet, whose units x price path drives the DCF."""
+    sheet, whose units x price path drives the DCF. `target_pack` = (Target, Setup, requirements, routes) adds
+    the Mode B Target sheet."""
     scale, unit = units(c.profile.get("currency"))
     wb = Workbook()
     fin_rows = _financials_sheet(wb, c, scale, unit)
@@ -234,6 +236,8 @@ def build(c: Company, setup=None, valuation=None, implied: dict | None = None, p
             add_your_story_sheet(wb, your_story, card, score, cells, scale, unit)
     if profile is not None or story is not None:
         add_story_sheet(wb, c.profile["name"], profile, story)
+    if target_pack is not None:
+        add_target_sheet(wb, c.profile["name"], *target_pack, scale, unit)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

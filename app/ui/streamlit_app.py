@@ -16,6 +16,7 @@ from app.engine.defaults import Setup, status_quo
 from app.excel.workbook import build, units
 from app.llm import LLMError, get_provider
 from app.story import story_numbers as sn
+from app.story import target as tg
 from app.story.fictional import FictionalSpec, draft, setup_for
 from app.story.market_story import market_story
 from app.story.profile import apply_industry, build_profile, cached_profile
@@ -298,14 +299,108 @@ def story_section(company, setup, profile, scale: float, unit: str, status_quo_v
     return Setup(a, setup.wacc, setup.warnings, setup.is_financial), v, result, (card, score)
 
 
-def download(company, setup, valuation, implied, profile, story, name: str, mode_a=None) -> None:
+VERDICT_ICON = {"probable": "🟢", "plausible": "🟡", "possible": "🟠", "out of reach": "🔴"}
+
+
+def target_section(company, setup, profile, scale: float, unit: str):
+    """Mode B: a target ("3x in 3 years") → what has to be true → AI stories calibrated to it and graded.
+    Returns (Target, Setup, requirements, routes) for the Excel file, or None."""
+    p, a = company.profile, setup.assumptions
+    if not a.price:
+        return None
+    cur = p.get("price_currency") or ""
+    st.markdown("### 🎯 Set a target: what has to be true?")
+    c1, c2, c3 = st.columns([2, 2, 1])
+    kind = c1.radio("Target", ["Multiple of today's price", "Share price", f"Market cap ({unit})"],
+                    horizontal=False, label_visibility="collapsed")
+    if kind.startswith("Multiple"):
+        amount = c2.number_input("Multiple (x)", value=3.0, min_value=0.1, step=0.5)
+        target = tg.Target("multiple", amount, 1)
+    elif kind == "Share price":
+        amount = c2.number_input(f"Target price ({cur})", value=round(a.price * 2, 0), min_value=0.01)
+        target = tg.Target("price", amount, 1)
+    else:
+        amount = c2.number_input(f"Market cap ({unit})", value=round(a.price * a.shares * 2 / scale, 0), min_value=1.0)
+        target = tg.Target("market_cap", amount * scale, 1)
+    target.years = int(c3.number_input("In years", value=3, min_value=1, max_value=10))
+    need = target.value_today(setup)
+    sq = value(a).value_per_share
+    w = setup.wacc
+    m = st.columns(4)
+    m[0].metric(f"Target price in {target.years} years", f"{target.price(a):,.2f}")
+    m[1].metric("Return that implies", f"{target.annual_return(a):.0%} a year")
+    m[2].metric("Value needed today", f"{need:,.2f}", help=f"Target price / (1 + {w.cost_of_equity:.1%} cost of "
+                f"equity)^{target.years}: if the market prices it at fair value then, value must grow into the "
+                "target at the return shareholders require.")
+    m[3].metric("Status-quo value", f"{max(sq, 0):,.2f}", f"{need / sq:.1f}x needed" if sq > 0 else None,
+                delta_color="off")
+    if need <= sq:
+        st.success("The status quo already gets there: no change in the story is needed.")
+
+    reqs = tg.requirements(setup, need)
+    fmt = {"growth": "{:.1%}", "target_margin": "{:.1%}", "sales_to_capital": "{:.2f}x", "terminal_roic": "{:.1%}"}
+    st.markdown("**What has to be true, one driver at a time** (everything else at the status quo)")
+    shown = pd.DataFrame([{
+        "Driver": r["Driver"], "Required": fmt[r["key"]].format(r["Required"]) if pd.notna(r["Required"]) else "—",
+        "Status quo": fmt[r["key"]].format(r["Status quo"]),
+        "In plain terms": (f"revenue {r['Revenue year 5 vs today']:.1f}x today's by year 5"
+                           if r["key"] == "growth" and pd.notna(r.get("Revenue year 5 vs today")) else ""),
+        "Note": r.get("Note") if isinstance(r.get("Note"), str) else ""} for _, r in reqs.iterrows()])
+    st.dataframe(shown.set_index("Driver"), use_container_width=True)
+
+    key = f"routes:{p['symbol']}:{target.label()}"
+    if st.button(f"Find stories that get there{f' ({llm().name}, ~2 min)' if llm() else ''}", type="primary",
+                 disabled=llm() is None or need <= sq, key="find_routes"):
+        with st.spinner("Writing 2-3 routes, then pushing each until it hits the target and grading it…"):
+            try:
+                routes = tg.draft_routes(company, setup, target, need, reqs, llm(), profile)
+                st.session_state[key] = (routes.model_dump(), need)
+            except LLMError as exc:
+                st.error(f"The AI could not write the stories: {exc}")
+    if llm() is None:
+        st.caption("Stories need an AI backend; the requirements above work without one.")
+    if key not in st.session_state:
+        return target, setup, reqs, None
+    routes = tg.Routes.model_validate(st.session_state[key][0])
+    results = tg.evaluate(company, setup, routes, need)
+    st.caption(f"Market: {routes.market}, {routes.market_units:,.0f} {routes.unit_name} a year; share today "
+               f"{routes.current_share:.0%}; {md(routes.base_reason)}")
+    for i, rr in enumerate(results):
+        path, d = rr.result.path, rr.drivers
+        lever = tg.LEVER_LABEL[rr.route.lever]
+        head = f"{VERDICT_ICON[rr.verdict]} **{md(rr.route.name)}** · 3P: **{rr.verdict.upper()}** · score {rr.score}/100"
+        with st.expander(head, expanded=i == 0):
+            st.markdown(md(rr.route.pitch))
+            if rr.lever_value is None:
+                st.error(f"Out of reach: no {lever.lower()} gets this story to {need:,.2f} a share; at its own "
+                         f"numbers it is worth {max(rr.valuation.value_per_share, 0):,.2f}.")
+            else:
+                st.markdown(f"To hit the target, **{lever.lower()}** has to be **{rr.lever_value:.1%}** "
+                            f"(the AI's realistic version: {rr.lever_start:.1%}).")
+            yrs = [0, target.years, 5, 10]
+            st.dataframe(pd.DataFrame({
+                f"Units sold ({routes.unit_name})": [f"{path['Units sold'].iloc[y]:,.0f}" for y in yrs],
+                "Market share": [f"{path['Market share'].iloc[y]:.1%}" for y in yrs],
+                f"Revenue ({unit})": [f"{path['Revenue'].iloc[y] / scale:,.0f}" for y in yrs],
+                "Operating margin": [f"{rr.valuation.table.loc['Operating margin', 'Base' if y == 0 else y]:.1%}"
+                                     for y in yrs],
+            }, index=["Today", f"Year {target.years}", "Year 5", "Year 10"]).T, use_container_width=True)
+            st.dataframe(rr.card.set_index("Check"), use_container_width=True)
+            st.markdown("**What would break it:** " + md("; ".join(rr.route.risks)))
+            if st.button("Open this story in *Tell your story* to edit it", key=f"use_route_{i}"):
+                st.session_state[f"drivers:{p['symbol']}"] = d.model_dump()
+                st.rerun()
+    return target, setup, reqs, results
+
+
+def download(company, setup, valuation, implied, profile, story, name: str, mode_a=None, mode_b=None) -> None:
     your_story, card, score = None, None, None
     if mode_a:  # the file follows your story: its DCF runs on the units x price path
         setup, valuation, your_story, (card, score) = mode_a
         implied = None
     st.download_button("⬇ Download Excel (live formulas, DCF and story)",
                        data=build(company, setup if valuation else None, valuation, implied, profile, story,
-                                  your_story, card, score),
+                                  your_story, card, score, mode_b),
                        file_name=f"{name}_valuation.xlsx", type="primary",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -443,9 +538,9 @@ except (KeyError, IndexError) as exc:
     st.info(f"No valuation: {exc}")
     st.stop()
 valuation, implied, story = valuation_section(company, setup, scale, unit, profile)
-mode_a = None
+mode_a = mode_b = None
 if valuation is not None:
     mode_a = story_section(company, setup, profile, scale, unit, valuation.value_per_share)
-download(company, setup, valuation, implied, profile, story, p["symbol"], mode_a)
-st.info("Next: set a target price and see what has to be true (Mode B). Coming in Phase 5.", icon="🧭")
+    mode_b = target_section(company, setup, profile, scale, unit)
+download(company, setup, valuation, implied, profile, story, p["symbol"], mode_a, mode_b)
 st.caption("Educational tool, not investment advice.")

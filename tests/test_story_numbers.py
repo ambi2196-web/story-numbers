@@ -97,6 +97,6 @@ def test_excel_story_sheet_drives_the_dcf(story):
     growth_row = next(row for row in dcf.iter_rows() if row[0].value == "Revenue growth")
     assert growth_row[2].value.startswith("='Your story'!C")  # year 1 links to the story sheet
     ws = wb["Your story"]
-    labels = [ws.cell(i, 1).value for i in range(1, 40)]
+    labels = [ws.cell(i, 1).value for i in range(1, 80)]
     assert "Units sold (cars)" in labels and any(str(x).startswith("Story score") for x in labels if x)
     assert not math.isnan(v.value_per_share)

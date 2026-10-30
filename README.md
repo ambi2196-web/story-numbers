@@ -36,6 +36,13 @@ Or from the command line (writes `output/<TICKER>_<date>.xlsx`):
 ### Tell your story (Mode A)
 After the status-quo valuation, type a story ("Maruti takes 70% of India's car market and 80% of its cars are EVs"). The AI turns it into drivers (market size and growth, share, revenue per unit, margin, capital intensity), tagging each as *your story* or *AI inferred*. Revenue is built as units sold × price, the same DCF values it, and a **story vs reality** scorecard grades each driver against the company's five years and its Damodaran industry. Edit any driver and it recomputes; the Excel file gains a *Your story* sheet whose units × price path drives the DCF with live formulas.
 
+### Set a target (Mode B)
+Enter a target ("3× in 3 years", a share price or a market cap). If the market prices the company at fair value by then, value must grow into the target at the cost of equity, so the app works out the value needed today, then:
+- **one driver at a time:** the growth, margin, capital efficiency or long-run return on capital that alone would get there, in plain terms (e.g. "revenue 8.6× today's by year 5");
+- **stories that get there:** the AI writes 2–3 genuinely different routes (e.g. premium SUVs, cost leadership, EV exports). The engine pushes each route's main lever until the story is worth exactly the target, then grades it on Damodaran's 3P test (any red flag = possible, no red flags = plausible, at most one stretch = probable; "out of reach" if no value of the lever gets there).
+
+Any route can be opened in *Tell your story* to edit it. The Excel file gains a *Target* sheet.
+
 ### Company data (all free)
 | Source | Used for |
 |---|---|

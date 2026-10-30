@@ -200,12 +200,19 @@ def scorecard(company: Company, setup: Setup, result: StoryResult, v: Valuation 
     # Judged against the market's own growth in value (units and price): history can flatter (a COVID-low base).
     col = "Revenue from this market" if path["Revenue from this market"].iloc[0] > 0 else "Revenue"
     g5 = (path[col].iloc[5] / path[col].iloc[0]) ** 0.2 - 1
-    market_value_g = (1 + d.market_growth.value) * (1 + d.price_growth.value) - 1
-    add("Revenue growth, years 1-5" + (" (this market)" if d.revenue_share.value < 1 else ""), f"{g5:.1%} a year",
-        f"market {market_value_g:.1%} (units and price); company {hist_g:.1%} over the last {len(rev) - 1} years",
-        _grade(g5 - market_value_g, 0.03, 0.10),
-        f"{(g5 - market_value_g) * 100:.0f} points a year faster than the market, all of it taken from rivals."
+    # The market grows in units plus inflation; price rises beyond inflation are judged separately below.
+    infl = setup.wacc.inflation_local
+    market_value_g = (1 + d.market_growth.value) * (1 + infl) - 1
+    add("Revenue growth" + (" from this market" if d.revenue_share.value < 1 else "") + ", years 1-5",
+        f"{g5:.1%} a year",
+        f"market {market_value_g:.1%} (units + {infl:.0%} inflation); company {hist_g:.1%} over the last "
+        f"{len(rev) - 1} years", _grade(g5 - market_value_g, 0.03, 0.10),
+        f"{(g5 - market_value_g) * 100:.0f} points a year faster than the market grows in money terms."
         if g5 > market_value_g + 0.03 else "Close to the market's own growth.")
+    pg = d.price_growth.value
+    add("Revenue per unit growth", f"{pg:.1%} a year", f"inflation {infl:.1%}", _grade(pg - infl, 0.03, 0.08),
+        "Prices rising this much faster than inflation every year needs a big shift to pricier products."
+        if pg > infl + 0.03 else "Roughly inflation plus a little mix.")
 
     ceiling = max(best_margin, ind_m)
     add("Target operating margin", f"{a.target_margin:.1%}", f"best year {best_margin:.1%}; industry {ind_m:.1%}",
