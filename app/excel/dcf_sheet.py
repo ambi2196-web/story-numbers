@@ -17,7 +17,9 @@ COL = {t: get_column_letter(BASE_COL + t) for t in range(YEARS + 2)}  # 0 = base
 
 
 def add_dcf_sheet(wb: Workbook, setup: Setup, v: Valuation, scale: float, unit: str,
-                  implied: dict[str, float | None] | None = None) -> None:
+                  implied: dict[str, float | None] | None = None, growth_refs: list[str] | None = None) -> dict:
+    """Returns the input cell addresses, so a story sheet can link to them. `growth_refs`: ten formulas (one per
+    year) that replace the growth assumptions, e.g. links to the story sheet's units x price path."""
     a, w = v.assumptions, setup.wacc
     ws = wb.create_sheet("DCF", 1)
     title(ws, "Discounted cash flow (FCFF): live formulas",
@@ -140,7 +142,13 @@ def add_dcf_sheet(wb: Workbook, setup: Setup, v: Valuation, scale: float, unit: 
     for t in range(1, YEARS + 1):
         c, p, yr = COL[t], COL[t - 1], f"{COL[t]}${year_row}"
         g1, g, gt = A["growth_y1"], A["growth_y2_5"], A["terminal_growth"]
-        put("growth", t, f"=IF({yr}=1,{g1},IF({yr}<=5,{g},{g}-({g}-{gt})*({yr}-5)/5))")
+        if growth_refs:
+            put("growth", t, growth_refs[t - 1])
+        elif a.growth_path is not None:
+            put("growth", t, float(a.growth_path[t - 1]))
+            ws.cell(R["growth"], BASE_COL + t).font = Font(color=INPUT_BLUE)
+        else:
+            put("growth", t, f"=IF({yr}=1,{g1},IF({yr}<=5,{g},{g}-({g}-{gt})*({yr}-5)/5))")
         put("revenue", t, f"={p}{R['revenue']}*(1+{c}{R['growth']})")
         put("margin", t, f"=IF({yr}>=MAX({A['margin_year']},1),{A['target_margin']},"
                          f"{base_margin}+({A['target_margin']}-{base_margin})*{yr}/MAX({A['margin_year']},1))")
@@ -216,3 +224,4 @@ def add_dcf_sheet(wb: Workbook, setup: Setup, v: Valuation, scale: float, unit: 
         ws.cell(i, 1, f"Note: {msg}").font = Font(italic=True, color="C00000")
     widths(ws, {"A": 58, "B": 14, "C": 13, **{COL[t]: 13 for t in range(2, YEARS + 2)}})
     ws.freeze_panes = "B4"
+    return A

@@ -33,6 +33,9 @@ Or from the command line (writes `output/<TICKER>_<date>.xlsx`):
 .venv/Scripts/python -m app.collect "Maruti Suzuki"
 ```
 
+### Tell your story (Mode A)
+After the status-quo valuation, type a story ("Maruti takes 70% of India's car market and 80% of its cars are EVs"). The AI turns it into drivers (market size and growth, share, revenue per unit, margin, capital intensity), tagging each as *your story* or *AI inferred*. Revenue is built as units sold × price, the same DCF values it, and a **story vs reality** scorecard grades each driver against the company's five years and its Damodaran industry. Edit any driver and it recomputes; the Excel file gains a *Your story* sheet whose units × price path drives the DCF with live formulas.
+
 ### Company data (all free)
 | Source | Used for |
 |---|---|

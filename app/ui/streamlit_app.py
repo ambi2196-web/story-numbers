@@ -12,9 +12,10 @@ from app.data import damodaran
 from app.data.collector import LABELS, CompanyNotFound, collect, resolve, search
 from app.data.ratios import RATIO_FORMATS, RATIO_LABELS, compute
 from app.engine.dcf import solve, value
-from app.engine.defaults import status_quo
+from app.engine.defaults import Setup, status_quo
 from app.excel.workbook import build, units
 from app.llm import LLMError, get_provider
+from app.story import story_numbers as sn
 from app.story.fictional import FictionalSpec, draft, setup_for
 from app.story.market_story import market_story
 from app.story.profile import apply_industry, build_profile, cached_profile
@@ -176,9 +177,135 @@ def valuation_section(company, setup, scale: float, unit: str, profile=None) -> 
     return valuation, implied, story
 
 
-def download(company, setup, valuation, implied, profile, story, name: str) -> None:
+UNIT_SCALE = {"pct": (100, "%"), "x": (1, "x"), "n": (1, "{unit_name}"), "money": (1, "{cur} per {unit}"),
+              "year": (1, "year")}
+
+
+def manual_drivers(setup) -> sn.StoryDrivers:
+    """A neutral starting sheet (status quo, generic units) for when no AI is available."""
+    a = setup.assumptions
+
+    def t(v, why):
+        return {"value": v, "source": "inferred", "reason": why}
+    return sn.StoryDrivers.model_validate({
+        "headline": "Status quo, ready to edit", "market": "its market", "unit_name": "units",
+        "market_units": t(1e6, "Placeholder market size"), "market_growth": t(a.growth_y2_5, "Status-quo growth"),
+        "current_share": t(0.1, "Placeholder"), "target_share": t(0.1, "Placeholder: same share"),
+        "share_year": t(5, "Placeholder"), "price_per_unit": t(a.revenue / 1e5, "Revenue / units today"),
+        "price_growth": t(0.0, "Placeholder"), "target_margin": t(a.target_margin, "Status quo"),
+        "margin_year": t(a.margin_year, "Status quo"), "sales_to_capital": t(a.sales_to_capital_1_5, "Status quo"),
+        "red_flags": []})
+
+
+def story_section(company, setup, profile, scale: float, unit: str, status_quo_value: float):
+    """Mode A: the user's story → AI driver sheet → editable → value, units table and story-vs-reality scorecard.
+    Returns (story setup, valuation, StoryResult, (scorecard, score)) or None."""
+    p = company.profile
+    key = f"drivers:{p['symbol']}"
+    st.markdown("### ✍️ Tell your story")
+    text = st.text_area("Your story", key=f"story:{p['symbol']}", label_visibility="collapsed",
+                        placeholder=f"e.g. {p['name']} takes 70% of its home market and 80% of what it sells is "
+                                    "electric by 2035")
+    with st.expander("Need prompts? Answer any of these (optional)"):
+        g1, g2 = st.columns(2)
+        hints = {"Market": g1.text_input("Which market, how big, how fast is it growing?"),
+                 "Share": g2.text_input("What share does it win, by when?"),
+                 "Pricing and mix": g1.text_input("Pricing and product mix (premium, EV, exports...)?"),
+                 "Margins and capital": g2.text_input("Margins and investment (plants, stores, R&D)?")}
+    full = " ".join([text.strip()] + [f"{k}: {v.strip()}." for k, v in hints.items() if v.strip()]).strip()
+    c1, c2 = st.columns([2, 1])
+    if c1.button(f"Turn my story into numbers{f' ({llm().name}, ~1 min)' if llm() else ''}", type="primary",
+                 disabled=not full or llm() is None):
+        with st.spinner("Reading your story: market, share, price per unit, margins, capital…"):
+            try:
+                st.session_state[key] = sn.draft(company, setup, full, llm(), profile).model_dump()
+            except LLMError as exc:
+                st.error(f"The AI could not read the story: {exc}")
+    if c2.button("Fill the drivers myself"):
+        st.session_state[key] = manual_drivers(setup).model_dump()
+    if key not in st.session_state:
+        return None
+    d = sn.StoryDrivers.model_validate(st.session_state[key])
+
+    st.markdown(f"#### {md(d.headline)}")
+    st.caption(f"Market: {d.market}. Edit any value and everything recomputes; edited numbers count as yours.")
+    cur = p.get("currency") or ""
+    rows = []
+    for k, label, kind in sn.DRIVER_ROWS:
+        x, (mult, u) = getattr(d, k), UNIT_SCALE[kind]
+        rows.append({"Driver": label, "Value": round(x.value * mult, 4),
+                     "Unit": u.format(unit_name=d.unit_name, cur=cur, unit=d.unit_name.rstrip("s")),
+                     "Source": "Your story" if x.source == "stated" else "AI inferred", "Why": x.reason})
+    edited = st.data_editor(pd.DataFrame(rows).set_index("Driver"), disabled=["Unit", "Source", "Why"],
+                            use_container_width=True, key=f"editor:{p['symbol']}:{d.headline}")
+    changes = {}
+    for (k, _label, kind), new in zip(sn.DRIVER_ROWS, edited["Value"]):
+        x, mult = getattr(d, k), UNIT_SCALE[kind][0]
+        if pd.notna(new) and abs(new - round(x.value * mult, 4)) > 1e-9:
+            changes[k] = x.model_copy(update={"value": float(new) / mult, "source": "stated",
+                                              "reason": "You edited this number"})
+    d = d.model_copy(update=changes)
+    if changes:
+        st.caption("✏️ You changed: " + ", ".join(label for k, label, _ in sn.DRIVER_ROWS if k in changes)
+                   + " (now counted as your story).")
+    if min(d.current_share.value, d.price_per_unit.value, d.market_units.value) <= 0:
+        st.error("Market size, today's share and price per unit must be above zero.")
+        return None
+
+    result = sn.build(company, setup, d)
+    try:
+        v = value(result.assumptions)
+    except ValueError as exc:
+        st.error(str(exc))
+        return None
+    card = sn.scorecard(company, setup, result, v)
+    score = sn.story_score(card)
+    a = result.assumptions
+    m = st.columns(4)
+    m[0].metric(f"Value per share on your story ({p.get('price_currency') or ''})",
+                f"{max(v.value_per_share, 0):,.2f}",
+                f"{v.value_per_share / status_quo_value - 1:+.0%} vs status quo" if status_quo_value > 0 else None)
+    m[1].metric("Price", f"{a.price:,.2f}" if a.price else "n/a")
+    m[2].metric("Value vs price", f"{v.upside:+.0%}" if v.upside is not None else "n/a")
+    m[3].metric("Story score", f"{score}/100", help="Starts at 100; each stretch costs 10 and each red flag 25.")
+    if v.equity_value < 0:
+        st.error("On this story the cash flows are worth less than nothing, so equity is shown as zero.")
+
+    path, t = result.path, v.table
+    cols = ["Base", *range(1, 11)]
+    st.dataframe(pd.DataFrame({
+        f"Market ({d.unit_name})": [f"{x:,.0f}" for x in path["Market units"]],
+        "Market share": [f"{x:.1%}" for x in path["Market share"]],
+        f"Units sold ({d.unit_name})": [f"{x:,.0f}" for x in path["Units sold"]],
+        f"Revenue per unit ({cur})": [f"{x:,.0f}" for x in path["Revenue per unit"]],
+        **({f"Revenue from this market ({unit})": [f"{x / scale:,.0f}" for x in path["Revenue from this market"]],
+            f"Other revenue, status quo ({unit})": [f"{x / scale:,.0f}" for x in path["Other revenue"]]}
+           if d.revenue_share.value < 1 else {}),
+        f"Revenue ({unit})": [f"{x / scale:,.0f}" for x in path["Revenue"]],
+        "Operating margin": [f"{t.loc['Operating margin', c]:.1%}" for c in cols],
+        f"Operating income ({unit})": [f"{t.loc['Operating income (EBIT)', c] / scale:,.0f}" for c in cols],
+        f"FCFF ({unit})": [""] + [f"{t.loc['FCFF', c] / scale:,.0f}" for c in cols[1:]],
+    }, index=["Today", *[f"Y{y}" for y in range(1, 11)]]).T, use_container_width=True)
+
+    st.markdown(f"**Story vs reality** · score {score}/100")
+    st.dataframe(card.set_index("Check"), use_container_width=True)
+    if d.mix:
+        st.markdown("**Product mix**\n" + "\n".join(
+            md(f"- {x.name}: {x.share_of_units:.0%} of {d.unit_name}"
+               + (f" (today {x.today:.0%})" if x.today is not None else "") + f". {x.effect}") for x in d.mix))
+    if d.red_flags:
+        st.markdown("**Red flags the AI noticed**\n" + "\n".join(md(f"- {f}") for f in d.red_flags))
+    return Setup(a, setup.wacc, setup.warnings, setup.is_financial), v, result, (card, score)
+
+
+def download(company, setup, valuation, implied, profile, story, name: str, mode_a=None) -> None:
+    your_story, card, score = None, None, None
+    if mode_a:  # the file follows your story: its DCF runs on the units x price path
+        setup, valuation, your_story, (card, score) = mode_a
+        implied = None
     st.download_button("⬇ Download Excel (live formulas, DCF and story)",
-                       data=build(company, setup if valuation else None, valuation, implied, profile, story),
+                       data=build(company, setup if valuation else None, valuation, implied, profile, story,
+                                  your_story, card, score),
                        file_name=f"{name}_valuation.xlsx", type="primary",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -316,6 +443,9 @@ except (KeyError, IndexError) as exc:
     st.info(f"No valuation: {exc}")
     st.stop()
 valuation, implied, story = valuation_section(company, setup, scale, unit, profile)
-download(company, setup, valuation, implied, profile, story, p["symbol"])
-st.info("Next: tell your own story (Mode A) or set a target price (Mode B). Coming in Phases 4 and 5.", icon="🧭")
+mode_a = None
+if valuation is not None:
+    mode_a = story_section(company, setup, profile, scale, unit, valuation.value_per_share)
+download(company, setup, valuation, implied, profile, story, p["symbol"], mode_a)
+st.info("Next: set a target price and see what has to be true (Mode B). Coming in Phase 5.", icon="🧭")
 st.caption("Educational tool, not investment advice.")

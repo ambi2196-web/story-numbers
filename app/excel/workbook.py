@@ -16,6 +16,7 @@ from app.data.collector import LABELS, Company
 from app.data.ratios import RATIOS, excel_formula
 from app.excel.dcf_sheet import add_dcf_sheet
 from app.excel.story_sheet import add_story_sheet
+from app.excel.your_story_sheet import add_your_story_sheet, growth_refs
 from app.excel.workbook_style import FORMATS, INPUT_BLUE, header as _header, title as _title, widths as _widths
 
 FIRST_YEAR_COL = 3  # A = key, B = label, C.. = years
@@ -211,9 +212,11 @@ def _raw_sheet(wb: Workbook, name: str, df: pd.DataFrame, scale: float, unit: st
     ws.freeze_panes = "B5"
 
 
-def build(c: Company, setup=None, valuation=None, implied: dict | None = None, profile=None, story=None) -> bytes:
-    """Workbook bytes; pass the engine's Setup and Valuation to add the live DCF sheet, and the AI profile
-    and market story to add the Story sheet."""
+def build(c: Company, setup=None, valuation=None, implied: dict | None = None, profile=None, story=None,
+          your_story=None, card=None, score: int | None = None) -> bytes:
+    """Workbook bytes; pass the engine's Setup and Valuation to add the live DCF sheet, the AI profile and
+    market story to add the Story sheet, and a Mode A StoryResult (with its scorecard) to add the Your story
+    sheet, whose units x price path drives the DCF."""
     scale, unit = units(c.profile.get("currency"))
     wb = Workbook()
     fin_rows = _financials_sheet(wb, c, scale, unit)
@@ -225,7 +228,10 @@ def build(c: Company, setup=None, valuation=None, implied: dict | None = None, p
             _raw_sheet(wb, name, c.raw[key], scale, unit)
     wb.move_sheet("Summary", offset=-wb.sheetnames.index("Summary"))
     if setup is not None and valuation is not None:
-        add_dcf_sheet(wb, setup, valuation, scale, unit, implied)
+        cells = add_dcf_sheet(wb, setup, valuation, scale, unit, implied,
+                              growth_refs() if your_story is not None else None)
+        if your_story is not None:
+            add_your_story_sheet(wb, your_story, card, score, cells, scale, unit)
     if profile is not None or story is not None:
         add_story_sheet(wb, c.profile["name"], profile, story)
     buf = BytesIO()

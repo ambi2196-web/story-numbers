@@ -5,6 +5,7 @@ and the Excel export all run the exact same model.
 
 Year by year:
   revenue growth   year 1 = g1, years 2-5 = g2_5, years 6-10 fall linearly to the terminal growth rate
+                   (or a story's own ten-year path, built from units sold x price)
   operating margin moves linearly from today's margin to the target margin by `margin_year`, then stays
   tax rate         effective rate for years 1-5, moving linearly to the marginal rate by year 10
   reinvestment     change in revenue / sales-to-capital
@@ -41,6 +42,7 @@ class Assumptions:
     terminal_growth: float = 0.04
     terminal_roic: float | None = None  # None = terminal cost of capital (no excess returns forever)
     tax_loss_carryforward: float = 0.0
+    growth_path: tuple | None = None  # ten yearly growth rates from a story (units x price); overrides g1/g2_5
     failure_probability: float = 0.0
     distress_proceeds: float = 0.5  # fraction of the going-concern value recovered if the firm fails
     # bridge from operating assets to value per share
@@ -91,6 +93,8 @@ def _paths(a: Assumptions) -> dict[str, np.ndarray]:
     growth = np.where(t == 1, a.growth_y1, a.growth_y2_5)
     late = t > 5
     growth[late] = a.growth_y2_5 - (a.growth_y2_5 - a.terminal_growth) * (t[late] - 5) / 5
+    if a.growth_path is not None:
+        growth = np.asarray(a.growth_path, dtype=float)
     m0, years = a.current_margin, max(a.margin_year, 1)
     margin = np.where(t >= years, a.target_margin, m0 + (a.target_margin - m0) * t / years)
     tax = np.where(late, a.effective_tax_rate + (a.marginal_tax_rate - a.effective_tax_rate) * (t - 5) / 5,
@@ -159,7 +163,7 @@ def value(a: Assumptions) -> Valuation:
 
 # Drivers the reverse solver can move, with a search range and how one number maps onto the assumptions.
 DRIVERS = {
-    "growth": ((-0.10, 0.60), lambda a, x: a.with_(growth_y1=x, growth_y2_5=x)),
+    "growth": ((-0.10, 0.60), lambda a, x: a.with_(growth_y1=x, growth_y2_5=x, growth_path=None)),
     "target_margin": ((-0.20, 0.80), lambda a, x: a.with_(target_margin=x)),
     "sales_to_capital": ((0.1, 20.0), lambda a, x: a.with_(sales_to_capital_1_5=x, sales_to_capital_6_10=x)),
     # the moat: return on capital earned on new investment forever (lowest = cost of capital, no excess return)
