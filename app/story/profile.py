@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.data import cache, damodaran
 from app.data.collector import Company
 from app.data.ratios import compute
+from app.featured import featured_profile
 from app.excel.workbook import units
 from app.llm import LLMProvider
 
@@ -60,13 +61,14 @@ def _industry_menu(region: str) -> str:
 
 
 def cached_profile(symbol: str, provider: str) -> BusinessProfile | None:
-    hit = cache.get(f"profile:{symbol}:{provider}", max_age_hours=24 * 7)
+    """A profile this AI wrote in the last week, else a featured one shipped with the app (no AI call)."""
+    hit = cache.get(f"profile:{symbol}:{provider}", max_age_hours=24 * 7) or featured_profile(symbol)
     return BusinessProfile.model_validate(hit) if hit else None
 
 
 def build_profile(company: Company, llm: LLMProvider, refresh: bool = False) -> BusinessProfile:
     key = f"profile:{company.profile['symbol']}:{llm.name}"
-    if not refresh and (hit := cache.get(key, max_age_hours=24 * 7)):
+    if not refresh and (hit := cache.get(key, max_age_hours=24 * 7) or featured_profile(company.profile["symbol"])):
         return BusinessProfile.model_validate(hit)
     region = company.profile.get("region") or "Global"
     choices = damodaran.industries(region)

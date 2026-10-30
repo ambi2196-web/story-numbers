@@ -13,6 +13,7 @@ import yfinance as yf
 from pydantic import BaseModel
 
 from app.data import cache, edgar, nse, screener
+from app.data.net import SourceUnavailable, retry  # noqa: F401  (re-exported for the UI)
 from app.data.industry_map import to_damodaran_industry, to_region
 
 warnings.filterwarnings("ignore", module="yfinance")  # pandas deprecation noise from inside yfinance
@@ -99,7 +100,7 @@ def search(query: str, limit: int = 6) -> list[dict]:
 
 
 def _yahoo_search(query: str, limit: int) -> list[dict]:
-    quotes = yf.Search(query, max_results=10).quotes
+    quotes = retry(lambda: yf.Search(query, max_results=10).quotes, "Yahoo Finance search")
     # Group listings of the same company (keeping Yahoo's relevance order between companies),
     # then pick the home listing in each group: NSE over a US ADR, either over BSE or foreign lines.
     groups: dict[str, list[dict]] = {}
@@ -168,7 +169,19 @@ def _merge(yahoo: pd.DataFrame, primary: pd.DataFrame | None, name: str = "Scree
             rows[key], sources[key] = primary.loc[key].reindex(years), name
         else:
             rows[key], sources[key] = yahoo.loc[key].reindex(years), "Yahoo Finance"
-    return pd.DataFrame(rows).T.astype(float), sources
+    df = pd.DataFrame(rows).T.astype(float)
+    # Years the primary source does not cover at all (it shows fewer years) are taken whole from Yahoo, but only
+    # when both sources agree on revenue in the years they share; otherwise mixing would distort growth.
+    if primary is not None:
+        missing = [y for y in years if y not in primary.columns or primary[y].isna().all()]
+        shared = [y for y in years if y in primary.columns and pd.notna(primary.loc["revenue"].get(y))
+                  and pd.notna(yahoo.loc["revenue"].get(y))]
+        gap = (primary.loc["revenue", shared] / yahoo.loc["revenue", shared] - 1).abs().median() if shared else 1
+        if missing and gap < 0.05:
+            for y in missing:
+                df[y] = yahoo[y].reindex(df.index) if y in yahoo.columns else df[y]
+            sources["_years_from_yahoo"] = ", ".join(missing)
+    return df, sources
 
 
 _NOT_MONEY = ("share", "rate", "ratio")
@@ -207,6 +220,24 @@ def _by_fiscal_year(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def fiscal_year(label: str) -> int:
+    return int(str(label)[2:])
+
+
+def period_note(financials: pd.DataFrame) -> str | None:
+    """Gaps in the fiscal years (a change of year-end leaves a short period neither source reports as a year)."""
+    years = [fiscal_year(c) for c in financials.columns]
+    gaps = [f"FY{y}" for y in range(min(years), max(years) + 1) if y not in years] if years else []
+    blank = [c for c in financials.columns if pd.isna(financials.loc["revenue", c])]
+    notes = []
+    if gaps:
+        notes.append(f"No figures for {', '.join(gaps)} (a change of fiscal year-end or a short period); growth "
+                     "rates use the actual years between figures")
+    if blank:
+        notes.append(f"revenue missing for {', '.join(blank)}")
+    return "; ".join(notes) + "." if notes else None
+
+
 def _profile(symbol: str, info: dict, years: list[str]) -> dict:
     country = info.get("country")
     region = to_region(country)
@@ -240,10 +271,12 @@ def collect(query: str, refresh: bool = False, llm=None) -> Company:
         return Company.from_cache(hit)
 
     ticker = yf.Ticker(symbol)
-    raw = {"income": ticker.income_stmt, "balance": ticker.balance_sheet, "cashflow": ticker.cash_flow}
+    raw = retry(lambda: {"income": ticker.income_stmt, "balance": ticker.balance_sheet,
+                         "cashflow": ticker.cash_flow}, "Yahoo Finance")
     if raw["income"] is None or raw["income"].empty:
-        raise CompanyNotFound(f"Yahoo Finance has no annual statements for {symbol}.")
-    info = ticker.info
+        raise CompanyNotFound(f"Yahoo Finance has no annual statements for {symbol} (delisted, or not a "
+                              "company: funds and indices have none).")
+    info = retry(lambda: ticker.info, "Yahoo Finance")
     screener_df = screener.fetch(symbol)
     reported = info.get("financialCurrency")
     converted = bool(screener_df is not None and reported and reported != "INR"
@@ -261,6 +294,11 @@ def collect(query: str, refresh: bool = False, llm=None) -> Company:
     profile = _profile(symbol, info, list(financials.columns))
     if converted:
         profile["fx_note"] = f"Yahoo reports in {reported}; restated in INR at each fiscal year-end rate."
+    if note := period_note(financials):
+        profile["period_note"] = note
+    if filled := sources.pop("_years_from_yahoo", None):
+        profile["fx_note"] = "; ".join(filter(None, [profile.get("fx_note"),
+                                                    f"{filled} from Yahoo Finance ({name} does not go back that far)"]))
     profile["field_sources"] = sources
     profile["source"] = f"{name} + Yahoo Finance" if primary is not None else "Yahoo Finance"
     company = Company(profile, financials, raw)

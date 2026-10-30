@@ -9,14 +9,14 @@ import pandas as pd
 import streamlit as st
 
 from app.data import damodaran
-from app.data.collector import LABELS, CompanyNotFound, collect, resolve, search
+from app.data.collector import LABELS, CompanyNotFound, SourceUnavailable, collect, resolve, search
 from app.data.ratios import RATIO_FORMATS, RATIO_LABELS, compute
 from app.engine.dcf import solve, value
 from app.engine.defaults import Setup, status_quo
 from app.excel.workbook import build, units
 from app.game import scoring, store
 from app.game.challenges import CHALLENGES, FICTIONAL_TARGET, RANK, fictional_card
-from app.llm import LLMError, get_provider
+from app.llm import LLMError, QuotaExceeded, get_provider
 from app.story import story_numbers as sn
 from app.story import target as tg
 from app.story.fictional import FictionalSpec, draft, setup_for
@@ -32,11 +32,31 @@ def cached_search(query: str) -> list[dict]:
 
 
 @st.cache_resource
-def llm():
+def _server_llm():
     try:
         return get_provider()
     except LLMError:
         return None
+
+
+def llm():
+    """The visitor's own Gemini key (kept in this browser session only, never stored) wins over the server's AI."""
+    key = st.session_state.get("byok", "").strip()
+    if not key:
+        return _server_llm()
+    if st.session_state.get("_byok_for") != key:
+        st.session_state["_byok_provider"] = get_provider("gemini", gemini_api_key=key)
+        st.session_state["_byok_for"] = key
+    return st.session_state["_byok_provider"]
+
+
+def ai_error(exc: Exception, what: str) -> None:
+    if isinstance(exc, QuotaExceeded):
+        st.warning("⏳ Today's free AI allowance is used up. Come back tomorrow, or paste your own free Gemini key "
+                   "in the sidebar (🔑 Use your own AI key): it takes a minute at aistudio.google.com/apikey. "
+                   "Everything that does not need AI keeps working.")
+    else:
+        ai_error(exc, "{what}")
 
 
 def md(text: str) -> str:
@@ -223,7 +243,7 @@ def story_section(company, setup, profile, scale: float, unit: str, status_quo_v
             try:
                 st.session_state[key] = sn.draft(company, setup, full, llm(), profile).model_dump()
             except LLMError as exc:
-                st.error(f"The AI could not read the story: {exc}")
+                ai_error(exc, "read the story")
     if c2.button("Fill the drivers myself"):
         st.session_state[key] = manual_drivers(setup).model_dump()
     if key not in st.session_state:
@@ -358,7 +378,7 @@ def target_section(company, setup, profile, scale: float, unit: str):
                 routes = tg.draft_routes(company, setup, target, need, reqs, llm(), profile)
                 st.session_state[key] = (routes.model_dump(), need)
             except LLMError as exc:
-                st.error(f"The AI could not write the stories: {exc}")
+                ai_error(exc, "write the stories")
     if llm() is None:
         st.caption("Stories need an AI backend; the requirements above work without one.")
     if key not in st.session_state:
@@ -421,6 +441,19 @@ def sidebar():
                         "4. **Check** the story-vs-reality scorecard: ✅ OK, ⚠️ stretch, 🚩 red flag.\n"
                         "5. **Save** bull, base and bear scenarios and compare them.\n"
                         "6. **Score:** points = boldness × plausibility². Big moves every number can defend win.")
+        with st.expander("🔑 Use your own AI key"):
+            st.text_input("Free Gemini API key", key="byok", type="password",
+                          help="Get one free at aistudio.google.com/apikey. It stays in this browser session only: "
+                               "it is never saved or logged.")
+            ai = llm()
+            st.caption(f"AI in use: {ai.name if ai else 'none'}"
+                       + (" (your key)" if st.session_state.get("byok", "").strip() else ""))
+        with st.expander("ℹ️ About and disclaimer"):
+            st.caption("**Educational tool, not investment advice.** Values come from a simplified Damodaran-style "
+                       "DCF with default assumptions, not a recommendation to buy or sell anything. AI text and "
+                       "numbers can be wrong: every AI number is labelled and editable. Data: Yahoo Finance, "
+                       "Screener.in, SEC EDGAR, NSE, and Aswath Damodaran's public datasets (NYU Stern). Not "
+                       "affiliated with or endorsed by Professor Damodaran or any data provider.")
         st.markdown(f"**🏆 Leaderboard** · {ch.title if ch else 'all challenges'}")
         rows = store.leaderboard(ch.id if ch else None)
         if rows:
@@ -587,7 +620,7 @@ if mode == "A fictional company":
             try:
                 st.session_state["spec"] = draft(text, llm())
             except LLMError as exc:
-                st.error(f"The AI could not draft it: {exc}")
+                ai_error(exc, "draft it")
     if llm() is None:
         st.caption("No AI backend configured; fill in the numbers below yourself.")
     spec = st.session_state.get("spec") or FictionalSpec(
@@ -641,7 +674,11 @@ if not query:
     st.stop()
 
 with st.spinner("Searching…"):
-    matches = cached_search(query)
+    try:
+        matches = cached_search(query)
+    except SourceUnavailable as exc:
+        st.error(str(exc))
+        st.stop()
 if not matches:
     # Renamed or misspelt companies (e.g. Zomato is now Eternal): ask the AI for the ticker.
     with st.spinner("Not found in NSE or Yahoo search; asking the AI…"):
@@ -659,8 +696,12 @@ choice = st.selectbox("Did you mean", matches, format_func=lambda m: f"{m['name'
 with st.spinner(f"Collecting 5 years of financials for {choice['name']}…"):
     try:
         company = collect(choice["symbol"])
-    except CompanyNotFound as exc:
+    except (CompanyNotFound, SourceUnavailable) as exc:
         st.error(str(exc))
+        st.stop()
+    except Exception as exc:  # an odd filing should never show a traceback to a visitor
+        st.error(f"Could not read {choice['name']}'s financials ({type(exc).__name__}). Try another company, or "
+                 "value it as a fictional company with your own numbers.")
         st.stop()
 
 p = company.profile
@@ -682,7 +723,8 @@ cols[3].metric(f"Operating margin {latest}", fmt_ratio("operating_margin", ratio
 industry_note = (f" (picked by AI; rule-based mapping was {p['rule_based_industry']})"
                  if p.get("rule_based_industry") else "")
 st.caption(f"{p.get('industry')} → Damodaran group **{p.get('damodaran_industry')}**{industry_note} ({p.get('region')}) · "
-           f"Data: {p.get('source')}" + (f" · {p['fx_note']}" if p.get("fx_note") else ""))
+           f"Data: {p.get('source')}" + (f" · {p['fx_note']}" if p.get("fx_note") else "")
+           + (f" · ⚠️ {p['period_note']}" if p.get("period_note") else ""))
 
 st.markdown("### The business")
 if profile:
@@ -695,7 +737,7 @@ else:
                 build_profile(company, llm())
                 st.rerun()
             except LLMError as exc:
-                st.error(f"The AI could not write the profile: {exc}")
+                ai_error(exc, "write the profile")
 
 history_tabs(company, scale, unit)
 

@@ -15,7 +15,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 from app.data import cache, damodaran
-from app.data.collector import Company
+from app.data.collector import Company, fiscal_year
 from app.data.ratios import compute
 from app.engine.dcf import YEARS, Assumptions, Valuation, _paths
 from app.engine.defaults import Setup
@@ -179,7 +179,8 @@ def scorecard(company: Company, setup: Setup, result: StoryResult, v: Valuation 
     ratios = compute(fin)
     bench = damodaran.benchmarks(p["damodaran_industry"], p["region"])
     rev = fin.loc["revenue"].dropna()
-    hist_g = (rev.iloc[-1] / rev.iloc[0]) ** (1 / (len(rev) - 1)) - 1 if len(rev) > 1 and rev.iloc[0] > 0 else math.nan
+    span = fiscal_year(rev.index[-1]) - fiscal_year(rev.index[0]) if len(rev) > 1 else 0
+    hist_g = (rev.iloc[-1] / rev.iloc[0]) ** (1 / span) - 1 if span > 0 and rev.iloc[0] > 0 else math.nan
     best_margin = ratios.loc["operating_margin"].max()
     s2c_hist = ratios.loc["sales_to_capital"].median()
     ind_m, ind_s2c = bench["operating_margin"], bench["sales_to_capital"]
@@ -206,7 +207,7 @@ def scorecard(company: Company, setup: Setup, result: StoryResult, v: Valuation 
     add("Revenue growth" + (" from this market" if d.revenue_share.value < 1 else "") + ", years 1-5",
         f"{g5:.1%} a year",
         f"market {market_value_g:.1%} (units + {infl:.0%} inflation); company {hist_g:.1%} over the last "
-        f"{len(rev) - 1} years", _grade(g5 - market_value_g, 0.03, 0.10),
+        f"{span} years", _grade(g5 - market_value_g, 0.03, 0.10),
         f"{(g5 - market_value_g) * 100:.0f} points a year faster than the market grows in money terms."
         if g5 > market_value_g + 0.03 else "Close to the market's own growth.")
     pg = d.price_growth.value

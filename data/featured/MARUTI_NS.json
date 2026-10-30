@@ -1,0 +1,71 @@
+{
+ "one_liner": "Maruti Suzuki makes and sells the small, affordable cars that most Indian families buy, and also finances, insures, and services them.",
+ "segments": [
+  {
+   "name": "Passenger vehicles (domestic)",
+   "share_of_revenue": 0.78,
+   "description": "Manufacture and sale of hatchbacks, sedans, SUVs, MPVs and vans (Alto, Swift, Baleno, Brezza, Ertiga, Grand Vitara, etc.) through Maruti's Arena and Nexa dealer networks across India; this is the core profit engine of the company."
+  },
+  {
+   "name": "Exports",
+   "share_of_revenue": 0.07,
+   "description": "Sale of passenger vehicles to over 100 countries including South Africa, Saudi Arabia, Chile, Japan and Latin America, leveraging India as a low-cost manufacturing hub for Suzuki's global small-car strategy."
+  },
+  {
+   "name": "Spare parts, accessories & components",
+   "share_of_revenue": 0.08,
+   "description": "Sale of genuine spare parts and accessories to dealers and the aftermarket, and sale of components/dies to other manufacturers; a steadier, higher-margin revenue stream tied to the growing vehicle parc."
+  },
+  {
+   "name": "Mobility & allied services (financing, insurance, pre-owned cars, driving school)",
+   "share_of_revenue": 0.04,
+   "description": "Facilitation of vehicle financing and insurance (via tie-ups), True Value pre-owned car sales, fleet management, and driving schools; asset-light fee income that supports the core car-selling business."
+  },
+  {
+   "name": "Light commercial vehicles",
+   "share_of_revenue": 0.03,
+   "description": "Small LCVs such as Super Carry sold to small businesses and fleet operators, a minor but growing adjacency to the core passenger vehicle business."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "Vehicles sold (domestic + export)",
+   "unit": "units per year",
+   "latest_value": 2020000.0,
+   "note": "Approximate FY2025/26 total sales volume (domestic + export); core volume driver of revenue, derived from company sales releases, not from the financial table given."
+  },
+  {
+   "name": "Average realization per vehicle",
+   "unit": "INR per vehicle",
+   "latest_value": null,
+   "note": "Revenue per unit has risen with richer SUV/Nexa mix (Brezza, Grand Vitara, Fronx); exact blended ASP not disclosed segment-wise so left null for precision."
+  },
+  {
+   "name": "Operating margin",
+   "unit": "% of revenue",
+   "latest_value": 0.081,
+   "note": "FY2026 operating margin of 8.1%, down from 9.6% in FY2025, reflecting input cost and mix pressures; key profitability lever given thin-margin auto manufacturing."
+  },
+  {
+   "name": "Export volume share",
+   "unit": "% of total units",
+   "latest_value": null,
+   "note": "Exports are a growing driver of volume and margin diversification but exact share not confidently known from given data; left null."
+  },
+  {
+   "name": "Capacity utilization",
+   "unit": "% of installed capacity",
+   "latest_value": null,
+   "note": "Maruti has been expanding capacity (e.g., Kharkhoda plant); utilization rate drives operating leverage but not disclosed with confidence here."
+  }
+ ],
+ "addressable_market": "Indian passenger vehicle market, roughly 4-4.3 million units sold annually (~₹7-8 trillion in value), the world's third-largest car market, plus incremental export markets in Africa, Latin America and the Middle East for small, fuel-efficient cars.",
+ "competitive_position": "Maruti Suzuki is the dominant leader in Indian passenger vehicles with roughly 40% market share, built on the widest dealer/service network in the country, decades of small-car engineering expertise from parent Suzuki, and the lowest-cost manufacturing base in the industry. Its main competitors are Hyundai, Tata Motors, Mahindra & Mahindra and Kia, who have chipped away share in the faster-growing SUV segment where Maruti has historically been underrepresented; the moat is weaker in electric vehicles, where Maruti is a late entrant versus Tata and others.",
+ "key_risks": [
+  "Slower-than-expected shift to SUVs and EVs could keep eroding Maruti's historically dominant market share as competitors outgrow it in the segments buyers increasingly want.",
+  "Margin volatility from commodity costs (steel, precious metals for catalytic converters), yen/rupee exchange rates on royalty payments to Suzuki, and regulatory costs (emission/safety norms) can compress the already thin operating margins seen in FY2022-FY2026.",
+  "Heavy dependence on the Indian consumer discretionary cycle, interest rates, and rural/urban demand swings makes volume growth cyclical and sensitive to macro shocks (e.g., fuel prices, GST changes, financing costs)."
+ ],
+ "damodaran_industry": "Auto & Truck",
+ "industry_reason": "Essentially all of Maruti's operating profit comes from designing, manufacturing and selling complete passenger (and light commercial) vehicles under its own brand, not from auto parts supply, dealership retailing, or financial services, which places it squarely in Damodaran's 'Auto & Truck' manufacturer group rather than 'Auto Parts' or 'Retail (Automotive)'."
+}

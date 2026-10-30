@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from app.data import damodaran
-from app.data.collector import Company
+from app.data.collector import Company, fiscal_year
 from app.data.ratios import compute
 from app.engine.dcf import Assumptions
 
@@ -127,9 +127,12 @@ def status_quo(company: Company) -> Setup:
                         "DCF does not fit them. Treat this value as indicative only; a dividend/excess-return "
                         "model for financials is planned.")
 
+    if p.get("period_note"):
+        warnings.append(p["period_note"])
     rev = fin.loc["revenue"].dropna()
-    n = min(3, len(rev) - 1)
-    cagr = (rev.iloc[-1] / rev.iloc[-1 - n]) ** (1 / n) - 1 if n > 0 and rev.iloc[-1 - n] > 0 else 0.05
+    k = min(3, len(rev) - 1)  # three periods back, measured in actual years (fiscal years can have gaps)
+    n = fiscal_year(rev.index[-1]) - fiscal_year(rev.index[-1 - k]) if k > 0 else 0
+    cagr = (rev.iloc[-1] / rev.iloc[-1 - k]) ** (1 / n) - 1 if n > 0 and rev.iloc[-1 - k] > 0 else 0.05
     growth = min(max(cagr, 0.0), 0.25)
     src["growth"] = f"{n}-year revenue CAGR ({cagr:.1%})" + (", capped" if growth != cagr else "")
 

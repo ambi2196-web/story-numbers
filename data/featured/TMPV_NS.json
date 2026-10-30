@@ -1,0 +1,66 @@
+{
+ "one_liner": "Tata Motors Passenger Vehicles Limited designs, builds and sells cars and SUVs for everyday buyers in India and luxury buyers worldwide through its Jaguar Land Rover subsidiary, and also finances many of the vehicles it sells.",
+ "segments": [
+  {
+   "name": "Jaguar Land Rover (JLR)",
+   "share_of_revenue": 0.65,
+   "description": "Wholly-owned UK-based luxury vehicle subsidiary selling Jaguar and Land Rover/Range Rover/Defender/Discovery models globally (UK, Europe, China, North America); the single largest contributor to consolidated revenue and, in good years, to operating profit, but was hit hard in FY2026 by a major cyberattack that halted production for several weeks."
+  },
+  {
+   "name": "Tata Passenger Vehicles - India (ICE + EV)",
+   "share_of_revenue": 0.27,
+   "description": "Domestic manufacture and sale of mass-market hatchbacks, sedans and SUVs (Tiago, Punch, Nexon, Harrier, Safari) under the Tata brand, including India's largest portfolio of electric passenger vehicles (Nexon EV, Tiago EV, Punch EV, Tigor EV)."
+  },
+  {
+   "name": "Vehicle Financing (Tata Motors Finance and related NBFCs)",
+   "share_of_revenue": 0.05,
+   "description": "Captive financing arm that provides retail loans, dealer financing and leasing to buyers and dealers of Tata and JLR vehicles, earning net interest income rather than product margin."
+  },
+  {
+   "name": "IT services and other industrial products",
+   "share_of_revenue": 0.03,
+   "description": "Small residual businesses including IT/engineering services to group companies and industrial/stationary engines, bundled into consolidated 'other' revenue."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "JLR wholesale vehicles sold",
+   "unit": "units per year",
+   "latest_value": null,
+   "note": "JLR typically ships ~350,000-400,000 vehicles/year globally; FY2026 volumes fell sharply due to the cyberattack-driven production stoppage - exact FY2026 figure not confident enough to state."
+  },
+  {
+   "name": "JLR average revenue per vehicle",
+   "unit": "GBP per unit",
+   "latest_value": null,
+   "note": "Luxury mix (Range Rover/Defender) pushes average selling price well above mass-market peers; precise FY2026 ASP not confidently known."
+  },
+  {
+   "name": "Tata India PV domestic sales volume",
+   "unit": "units per year",
+   "latest_value": null,
+   "note": "Reported monthly by SIAM; Tata Motors is typically India's #2-3 PV OEM by volume, with EVs an increasing share of the mix."
+  },
+  {
+   "name": "EV penetration in India PV mix",
+   "unit": "% of India PV units sold",
+   "latest_value": null,
+   "note": "Key driver of future ASP and margin as EV adoption rises but competitive discounting has pressured EV realizations."
+  },
+  {
+   "name": "Operating margin swing from JLR disruption",
+   "unit": "% of revenue",
+   "latest_value": -0.3,
+   "note": "FY2026 consolidated operating margin turned negative, reflecting the JLR cyberattack's fixed-cost absorption hit on an otherwise ~7% margin base built in FY2024-25."
+  }
+ ],
+ "addressable_market": "Global premium/luxury SUV and sedan market (JLR's addressable pool, roughly $150-200bn annually) plus the Indian passenger vehicle market (~$35-40bn annually, ~4 million units/year), including the fast-growing Indian EV passenger car segment.",
+ "competitive_position": "In India, Tata Motors is the #2 or #3 player by PV volume behind Maruti Suzuki and alongside Hyundai, and the clear EV leader with the broadest electric portfolio among domestic OEMs; JLR competes in the global luxury SUV/sedan tier against Mercedes, BMW, Audi, Porsche and Lexus, differentiated by heritage British design and off-road capability but structurally thinner scale and higher cyclicality than German luxury rivals. The FY2026 cyberattack exposed JLR's operational fragility and the group's heavy reliance on a single subsidiary for the bulk of profit.",
+ "key_risks": [
+  "JLR concentration risk: a large share of consolidated profit comes from one luxury subsidiary exposed to China demand swings, UK/EU regulatory (EV mandate) costs, and operational shocks like the FY2026 cyberattack that can flip group margins negative.",
+  "Intensifying EV price competition in India compressing realizations just as Tata invests heavily to defend its EV leadership against Hyundai, Mahindra, Maruti and new Chinese entrants.",
+  "Execution and cost risk from JLR's ongoing platform/EV transition (Reimagine strategy) and from managing a newly demerged corporate structure (PV vs CV) that could strand costs or complicate capital allocation."
+ ],
+ "damodaran_industry": "Auto & Truck",
+ "industry_reason": "Despite the 'Passenger Vehicles' rebrand, the bulk of consolidated revenue and operating profit still comes from manufacturing and selling complete vehicles (JLR luxury cars/SUVs and Tata's India passenger cars/EVs) rather than from parts supply, dealership retailing, or finance alone - this matches the Auto & Truck OEM group (10% average margin) far better than Auto Parts, Retail (Automotive), or any financial-services group."
+}

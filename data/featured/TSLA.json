@@ -1,0 +1,65 @@
+{
+ "one_liner": "Tesla designs, builds, and sells electric cars, plus batteries and solar systems that store and generate clean energy.",
+ "segments": [
+  {
+   "name": "Automotive sales",
+   "share_of_revenue": 0.74,
+   "description": "Sales of Model S/3/X/Y/Cybertruck vehicles, including over-the-air software upgrades, directly to consumers and businesses worldwide."
+  },
+  {
+   "name": "Services and other",
+   "share_of_revenue": 0.11,
+   "description": "Used vehicle sales, paid Supercharging, vehicle maintenance and collision repair, parts, and merchandise revenue."
+  },
+  {
+   "name": "Energy generation and storage",
+   "share_of_revenue": 0.1,
+   "description": "Sales and installation of Powerwall, Megapack battery storage, and solar panels/roof to residential, commercial, and utility customers."
+  },
+  {
+   "name": "Automotive regulatory credits",
+   "share_of_revenue": 0.03,
+   "description": "Sale of zero-emission-vehicle and other regulatory credits to other automakers who need them to meet emissions mandates."
+  },
+  {
+   "name": "Automotive leasing",
+   "share_of_revenue": 0.02,
+   "description": "Revenue from vehicles leased directly to customers under Tesla's own leasing programs."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "Vehicles delivered",
+   "unit": "units per year",
+   "latest_value": 1789000.0,
+   "note": "Core volume driver; Tesla reports quarterly production/delivery figures (~1.79M in FY2024, flat-to-down into FY2025 amid demand softness and price cuts)."
+  },
+  {
+   "name": "Average selling price per vehicle",
+   "unit": "USD per vehicle",
+   "latest_value": 42000.0,
+   "note": "Derived from automotive sales revenue divided by deliveries; has fallen from ~$52K (2022) to the low-$40Ks as Tesla cut prices to defend volume, directly pressuring automotive gross margin."
+  },
+  {
+   "name": "Energy storage deployed",
+   "unit": "GWh per year",
+   "latest_value": 31.0,
+   "note": "Megapack/Powerwall deployments reported each quarter; this segment's growth rate (>50% YoY in some periods) is now a key offset to slowing auto growth."
+  },
+  {
+   "name": "Automotive gross margin ex-credits",
+   "unit": "percent",
+   "latest_value": null,
+   "note": "Tesla discloses this separately in shareholder letters; it has compressed sharply (from ~29% in 2021 to high-teens/low-teens) and is the main swing factor in consolidated operating margin."
+  }
+ ],
+ "addressable_market": "Global passenger vehicle market (~$3 trillion in annual sales, ~85-90 million units/year) plus a fast-growing global stationary energy storage and residential/commercial solar market (tens of billions of dollars annually and scaling with grid electrification).",
+ "competitive_position": "Tesla remains the largest pure-EV maker globally with roughly 10-12% share of the battery-electric vehicle market, but that share has eroded as BYD, legacy OEMs (VW, GM, Ford, Hyundai) and Chinese entrants (BYD, NIO, Xpeng) have scaled competing EVs, forcing repeated Tesla price cuts. Its moat rests on manufacturing cost leadership (gigacasting, vertical integration), a proprietary Supercharger network now opened to other OEMs, and software/self-driving data advantage, though that edge is narrowing as margins (4.6% operating margin in FY2025) have fallen from the mid-teens peak in FY2022.",
+ "key_risks": [
+  "Automotive gross margin keeps compressing as price cuts and EV price wars intensify from BYD and legacy OEMs, eroding the premium Tesla once commanded.",
+  "Regulatory credit revenue (a high-margin, non-operating-driven income source) could shrink or disappear if emissions rules change, directly hitting reported operating margin.",
+  "Full Self-Driving/robotaxi monetization - a large part of the bull case and embedded in current valuation - could be delayed by regulation or technology limits, disappointing a market pricing in software-like margins."
+ ],
+ "damodaran_industry": "Auto & Truck",
+ "industry_reason": "Despite a sizeable energy storage business, roughly three-quarters of Tesla's revenue and the majority of its asset base, capex, and operating profit still come from designing, manufacturing, and selling motor vehicles, which is exactly the business model of the Auto & Truck peer group (and that group's thin ~2% margin reflects the same capital intensity and price competition now squeezing Tesla's own auto margins)."
+}

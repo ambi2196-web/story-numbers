@@ -1,5 +1,8 @@
+[server]
+headless = true
+
 [browser]
 gatherUsageStats = false
 
-[theme]
-primaryColor = "#1F3864"
+[client]
+toolbarMode = "minimal"  # hides Streamlit's own Deploy button and developer menu from visitors

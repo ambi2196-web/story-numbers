@@ -1,0 +1,55 @@
+{
+ "one_liner": "Paytm is India's app for paying bills, scanning QR codes to pay shopkeepers, and getting quick loans, insurance or mutual funds through one's phone.",
+ "segments": [
+  {
+   "name": "Payment services (consumer + merchant)",
+   "share_of_revenue": 0.55,
+   "description": "Revenue from UPI/wallet payments, mobile recharges, utility bill payments, and merchant payment acceptance via QR codes, Soundbox devices and card machines, earning subscription fees, device rentals and payment processing margins."
+  },
+  {
+   "name": "Financial services and others",
+   "share_of_revenue": 0.26,
+   "description": "Commissions earned for sourcing and facilitating consumer and merchant loans (via lending partners like Aditya Birla Finance, banks and NBFCs), distribution of insurance, mutual funds, credit cards and wealth/broking products; this segment was hit hard in FY2025 by RBI restrictions on Paytm Payments Bank and lending pullbacks, then partially recovered in FY2026."
+  },
+  {
+   "name": "Marketing services / cloud and other",
+   "share_of_revenue": 0.19,
+   "description": "Digital advertising on the Paytm app, cloud and ticketing-adjacent services, and aggregator commissions for third-party digital products; this segment shrank after Paytm exited its movie/events ticketing business (sold to Zomato in FY2024)."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "Gross Merchandise Value (GMV) / Total Payment Volume processed",
+   "unit": "₹ lakh crore per year",
+   "latest_value": null,
+   "note": "Core volume driver for payment services revenue; Paytm discloses GMV/TPV quarterly but exact FY2026 figure not confidently known here."
+  },
+  {
+   "name": "Monthly Transacting Users (MTU)",
+   "unit": "million users per month",
+   "latest_value": null,
+   "note": "Engagement metric Paytm reports each quarter; drives both payment and cross-sell (financial services, marketing) revenue."
+  },
+  {
+   "name": "Merchant base (device + QR merchants)",
+   "unit": "million merchants",
+   "latest_value": null,
+   "note": "Growth in Soundbox/card-machine installed base drives subscription revenue and payment take-rate; Paytm discloses this in investor decks."
+  },
+  {
+   "name": "Loan disbursal value and take rate",
+   "unit": "₹ crore disbursed per year; % commission",
+   "latest_value": null,
+   "note": "Financial services revenue = loans disbursed by partner lenders x Paytm's distribution commission; collapsed after Jan 2024 RBI action on Paytm Payments Bank, now recovering."
+  }
+ ],
+ "addressable_market": "India's digital payments and fintech distribution market, with UPI transaction value alone exceeding ₹200 lakh crore annually, plus a fast-growing digital lending, insurance and wealth-distribution market worth several lakh crore rupees - a huge but structurally low-margin, fee-based opportunity.",
+ "competitive_position": "Paytm is one of India's largest payment platforms by merchant device count and transaction volume, but competes against free UPI apps from Google Pay and PhonePe (which dominate consumer P2P/P2M UPI with no revenue model of their own) and against bank-backed and NBFC lending partners for the financial-services commission pool; its moat rests on merchant device lock-in (Soundbox, card machines) and distribution reach rather than pricing power, and regulatory actions (RBI curbs on Paytm Payments Bank) showed how fragile that position can be.",
+ "key_risks": [
+  "Regulatory risk: further RBI/NPCI restrictions on Paytm's banking or payment-aggregator licenses could again cripple financial-services revenue as happened in FY2025.",
+  "Competitive risk: UPI's zero-MDR regime means Google Pay/PhonePe can keep giving away payments for free, capping Paytm's ability to monetize its largest volume segment.",
+  "Credit/partner risk: financial-services revenue depends entirely on third-party lenders' willingness to originate loans through Paytm; any pullback by lending partners directly hits the highest-margin segment."
+ ],
+ "damodaran_industry": "Software (Internet)",
+ "industry_reason": "Paytm earns most of its operating profit (or loss) from an app-based platform business with payments, financial-product distribution and advertising monetized digitally at thin, near-breakeven margins (-0.8% in FY2026) - closely matching the small, low-margin Software (Internet) peer group (2% average operating margin) rather than a traditional bank, NBFC or infrastructure-software company."
+}

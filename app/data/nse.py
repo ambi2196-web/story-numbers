@@ -15,6 +15,7 @@ from app.config import DATA_DIR
 
 URL = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
 PATH = DATA_DIR / "cache" / "nse_equity.csv"
+SEED = DATA_DIR / "nse_equity_seed.csv"  # committed copy: NSE often blocks servers outside India (cloud hosts)
 MAX_AGE_DAYS = 7
 _NOISE = {"limited", "ltd", "ltd.", "india", "the", "of", "and", "&"}
 
@@ -34,9 +35,9 @@ def equities() -> pd.DataFrame:
             PATH.parent.mkdir(parents=True, exist_ok=True)
             PATH.write_text(r.text, encoding="utf-8")
         except (httpx.HTTPError, pd.errors.ParserError):
-            if not PATH.exists():
+            if not PATH.exists() and not SEED.exists():
                 return pd.DataFrame(columns=["SYMBOL", "NAME"])
-    df = pd.read_csv(PATH)
+    df = pd.read_csv(PATH if PATH.exists() else SEED)
     df.columns = [c.strip() for c in df.columns]
     return df.rename(columns={"NAME OF COMPANY": "NAME"})[["SYMBOL", "NAME"]]
 

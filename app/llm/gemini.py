@@ -52,7 +52,7 @@ class GeminiProvider(LLMProvider):
                         break  # quota hit, model retired, or still overloaded: try the next model
                     time.sleep(wait)
         if all(f.endswith("429") for f in failures):
-            raise QuotaExceeded("Gemini free-tier limit reached. Try again later or add your own key.")
+            raise QuotaExceeded("The free Gemini allowance is used up for now. Try again later or add your own key.")
         raise LLMError(f"Gemini is busy right now, please try again shortly ({', '.join(failures)})")
 
     def list_models(self) -> list[str]:

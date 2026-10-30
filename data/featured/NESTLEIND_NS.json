@@ -1,0 +1,65 @@
+{
+ "one_liner": "Nestlé India makes and sells packaged food and drink brands like Maggi noodles, Nescafé coffee, KitKat, and baby/dairy nutrition products that Indian households buy every day.",
+ "segments": [
+  {
+   "name": "Milk Products and Nutrition",
+   "share_of_revenue": 0.44,
+   "description": "Dairy whitener, condensed and UHT milk, yogurt, infant formula (Cerelac, Lactogen), and healthcare nutrition products; the company's largest and most profitable category given strong brand trust in infant and dairy nutrition."
+  },
+  {
+   "name": "Prepared Dishes and Cooking Aids",
+   "share_of_revenue": 0.26,
+   "description": "Maggi noodles, sauces, ketchup, seasonings, pasta and pet food; Maggi alone is a dominant, iconic franchise in Indian instant noodles with very high brand recall."
+  },
+  {
+   "name": "Powdered and Liquid Beverages",
+   "share_of_revenue": 0.14,
+   "description": "Nescafé instant coffee, Nestea, and ready-to-drink beverages; a steady, high-margin category riding India's growing out-of-home and in-home coffee consumption."
+  },
+  {
+   "name": "Confectionery",
+   "share_of_revenue": 0.11,
+   "description": "KitKat, Munch, Milkybar and other chocolate/candy products competing in a crowded impulse-purchase category against Mondelez, Mars and local players."
+  },
+  {
+   "name": "Exports and Other",
+   "share_of_revenue": 0.05,
+   "description": "Exports of Nestlé-branded products to neighboring and other international markets, plus miscellaneous other income, rounding out consolidated revenue."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "Volume growth (tonnes/units sold)",
+   "unit": "% change in volume per year",
+   "latest_value": null,
+   "note": "Nestlé India discloses volume growth qualitatively each quarter (e.g., 'low single digit volume growth'); exact tonnage not disclosed, hence null."
+  },
+  {
+   "name": "Average realization/price per pack",
+   "unit": "INR per unit (SKU-level, varies by category)",
+   "latest_value": null,
+   "note": "Price hikes taken periodically to offset input cost (milk, wheat, coffee, cocoa, packaging) inflation; not separately disclosed in INR terms."
+  },
+  {
+   "name": "Rural vs urban mix / distribution reach",
+   "unit": "number of towns/outlets covered",
+   "latest_value": null,
+   "note": "Management commentary emphasizes expanding direct reach into smaller towns as a growth lever; specific outlet counts not consistently disclosed."
+  },
+  {
+   "name": "Input cost inflation (milk, green coffee, wheat, cocoa, edible oil)",
+   "unit": "% YoY change in commodity basket cost",
+   "latest_value": null,
+   "note": "Key swing factor for gross margin given commodity-intensive inputs; company flags this in results commentary but doesn't give a single blended number."
+  }
+ ],
+ "addressable_market": "India's branded packaged foods and beverages market, spanning dairy/nutrition, noodles & convenience foods, coffee, and confectionery, estimated at roughly ₹5-6 lakh crore (~$60-70 billion) and growing with rising urbanization, convenience consumption and premiumization.",
+ "competitive_position": "Nestlé India is a market leader in several of its core categories - Maggi in instant noodles, Nescafé in instant coffee, and a top-three player in infant nutrition and milk products - built on decades of brand trust, deep rural-urban distribution, and a global R&D/innovation pipeline from parent Nestlé S.A. Key competitors include Hindustan Unilever, Britannia, ITC, Mondelez, GCMMF (Amul) and a growing set of D2C/regional challengers, but Nestlé's premium pricing power and distribution scale keep it structurally more profitable than the broader packaged foods peer set.",
+ "key_risks": [
+  "Sharp and sustained commodity cost inflation (milk, coffee, cocoa, edible oils, packaging) that compresses gross margins faster than pricing can be passed through without hurting volumes.",
+  "Intensifying competition from Amul, HUL, ITC and fast-growing regional/D2C food brands eroding Maggi, Nescafé or KitKat market share, especially in value-conscious rural and semi-urban markets.",
+  "Regulatory or food-safety scrutiny (as seen historically with the 2015 Maggi lead/MSG controversy) that can trigger abrupt revenue and trust shocks, plus evolving FSSAI/health-labeling rules affecting product formulations and marketing."
+ ],
+ "damodaran_industry": "Food Processing",
+ "industry_reason": "Nestlé India's revenue and profit are generated almost entirely from manufacturing and selling branded packaged food and beverage products (dairy nutrition, noodles, coffee, confectionery) - the exact economic activity the Food Processing group captures; its ~20% operating margin is well above the group's 7% average, reflecting superior brand strength and pricing power rather than a different business model, so Food Processing remains the correct peer group despite the margin gap."
+}

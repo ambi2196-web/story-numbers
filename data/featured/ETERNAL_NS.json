@@ -1,0 +1,66 @@
+{
+ "one_liner": "Eternal runs India's biggest apps for getting food, groceries, and other everyday stuff delivered fast, plus the B2B supply chain that feeds restaurants.",
+ "segments": [
+  {
+   "name": "Quick Commerce (Blinkit)",
+   "share_of_revenue": 0.45,
+   "description": "10-20 minute delivery of groceries, daily essentials, electronics and more from a growing network of dark stores; now the fastest-growing and largest revenue driver."
+  },
+  {
+   "name": "India Food Ordering and Delivery (Zomato app)",
+   "share_of_revenue": 0.32,
+   "description": "Marketplace connecting restaurants, delivery partners, and diners for food ordering and delivery; the original and most mature business, now roughly breakeven."
+  },
+  {
+   "name": "Hyperpure Supplies (B2B)",
+   "share_of_revenue": 0.2,
+   "description": "Supplies fruits, vegetables, meat, dairy, packaging and other ingredients to restaurant partners, plus 4PL warehousing; low-margin, volume-driven business."
+  },
+  {
+   "name": "Going Out (District)",
+   "share_of_revenue": 0.03,
+   "description": "Dining-out discovery, movie and event ticketing, and live events under the District app; smallest segment, still scaling."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "Gross Order Value (GOV) across food delivery and quick commerce",
+   "unit": "INR crore per year",
+   "latest_value": null,
+   "note": "Total value of orders placed; revenue is a take-rate cut of this. Company discloses GOV in investor presentations but not restated to a single confident FY2026 figure here."
+  },
+  {
+   "name": "Number of active dark stores (Blinkit)",
+   "unit": "stores",
+   "latest_value": null,
+   "note": "Store count has been expanding aggressively (reported quarterly); drives both revenue growth and near-term margin drag from new-store losses."
+  },
+  {
+   "name": "Average order value (AOV)",
+   "unit": "INR per order",
+   "latest_value": null,
+   "note": "Key lever for unit economics in both food delivery and quick commerce; company does not consistently disclose a single blended figure."
+  },
+  {
+   "name": "Take rate / commission",
+   "unit": "% of GOV",
+   "latest_value": null,
+   "note": "Effective monetization rate on food delivery and Blinkit orders; implied by revenue/GOV, varies by segment and is not separately confirmed here."
+  },
+  {
+   "name": "Orders per day",
+   "unit": "orders/day",
+   "latest_value": null,
+   "note": "Volume driver disclosed periodically by management; not pinned down with confidence for FY2026."
+  }
+ ],
+ "addressable_market": "India's online food delivery and quick commerce markets combined are estimated in the tens of billions of dollars (food delivery GOV roughly $8-10bn, quick commerce GOV growing even faster and potentially larger over time), within a broader ~$900bn+ Indian retail and foodservice opportunity that is still mostly offline.",
+ "competitive_position": "Eternal (via Zomato) and Swiggy are the clear duopoly in Indian food delivery, each with roughly similar GOV share; in quick commerce, Blinkit competes intensely with Swiggy Instamart, Zepto, and newer entrants like Amazon/Flipkart-backed players in a land-grab phase. Moat comes from delivery-fleet density, dark-store network effects, and brand trust, but competitive intensity keeps margins thin and capex/opex high.",
+ "key_risks": [
+  "Quick commerce (Blinkit) profitability depends on dark-store maturity and discipline on new-store losses; a prolonged price war with Swiggy Instamart/Zepto could keep margins negative longer than expected.",
+  "Regulatory risk around gig-worker classification, delivery partner wages, and potential restrictions on deep discounting or dark-store zoning could raise costs or cap growth.",
+  "Heavy reliance on continued hypergrowth (revenue roughly 2.7x in FY2026) to reach scale economics; any slowdown in order growth without margin improvement would pressure the current near-breakeven narrative."
+ ],
+ "damodaran_industry": "Retail (Grocery and Food)",
+ "industry_reason": "The largest and fastest-growing piece of Eternal's revenue and operating losses now comes from Blinkit, an inventory-and-logistics-heavy quick commerce grocery/essentials retailer, not a pure asset-light software marketplace; its economics (warehousing, delivery fleet, thin take-rate margins) map most closely to the Retail (Grocery and Food) peer group rather than Software (Internet) or Restaurant/Dining."
+}

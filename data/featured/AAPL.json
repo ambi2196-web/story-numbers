@@ -1,0 +1,65 @@
+{
+ "one_liner": "Apple designs and sells premium phones, computers, tablets, and watches, and then earns extra money from the apps, subscriptions, and services that run on them.",
+ "segments": [
+  {
+   "name": "iPhone",
+   "share_of_revenue": 0.5,
+   "description": "Flagship smartphone line; largest hardware revenue source and the anchor product that pulls users into Apple's ecosystem."
+  },
+  {
+   "name": "Services",
+   "share_of_revenue": 0.28,
+   "description": "App Store commissions, Apple Music, iCloud, AppleCare, Apple Pay, advertising, and licensing fees (e.g., Google search default); highest-margin segment."
+  },
+  {
+   "name": "Mac",
+   "share_of_revenue": 0.08,
+   "description": "Laptop and desktop computers built on Apple silicon."
+  },
+  {
+   "name": "iPad",
+   "share_of_revenue": 0.07,
+   "description": "Tablet line spanning entry-level to professional use cases."
+  },
+  {
+   "name": "Wearables, Home and Accessories",
+   "share_of_revenue": 0.08,
+   "description": "Apple Watch, AirPods, Vision Pro, HomePod, Beats, and accessories."
+  }
+ ],
+ "unit_drivers": [
+  {
+   "name": "iPhone units sold",
+   "unit": "units per year",
+   "latest_value": null,
+   "note": "Apple stopped disclosing unit counts in FY2019 filings; estimated external at roughly 220-230 million units/year, drives over half of total revenue."
+  },
+  {
+   "name": "iPhone average selling price",
+   "unit": "USD per unit",
+   "latest_value": null,
+   "note": "Blended ASP has risen with Pro-line mix shift; rough industry estimates put it near $900-1,000, but Apple does not disclose this directly."
+  },
+  {
+   "name": "Installed base of active devices",
+   "unit": "billion devices",
+   "latest_value": 2.3,
+   "note": "Apple has cited over 2 billion active devices in recent shareholder letters/calls; this installed base is the engine for Services revenue growth."
+  },
+  {
+   "name": "Services revenue per active device",
+   "unit": "USD per device per year",
+   "latest_value": null,
+   "note": "Not disclosed; inferred by dividing Services revenue by installed base, gives a rough sense of monetization intensity."
+  }
+ ],
+ "addressable_market": "Global consumer electronics and digital services market: roughly $500B+ annual smartphone market, plus PCs/tablets (~$300B combined), wearables, and a multi-hundred-billion-dollar digital services/app economy (App Store, streaming, cloud, payments) that Apple taps via its 2+ billion device installed base.",
+ "competitive_position": "Apple holds the top or near-top position by revenue and profit share in premium smartphones, tablets, and wearables, with a closed hardware-software-services ecosystem (iOS, App Store, iCloud) that creates high switching costs and strong pricing power versus Samsung, Google/Android OEMs, and PC rivals like Dell, HP, and Lenovo. Its moat rests on brand loyalty, integrated design, and the Services flywheel monetizing its installed base, though it faces regulatory pressure on App Store economics and antitrust scrutiny of its ecosystem lock-in.",
+ "key_risks": [
+  "iPhone revenue concentration (~50% of sales) makes Apple highly exposed to smartphone replacement cycles, China demand/competition, and any stumble in a single product line.",
+  "Regulatory and antitrust actions (EU DMA, App Store commission disputes, Google search-default deal risk) could shrink the high-margin Services business that drives much of operating profit growth.",
+  "Supply chain concentration in China/Taiwan exposes Apple to geopolitical tension, tariffs, and manufacturing disruption risk given its reliance on contract manufacturers like Foxconn and TSMC."
+ ],
+ "damodaran_industry": "Computers/Peripherals",
+ "industry_reason": "Apple's operating profit is still anchored in premium hardware devices (iPhone, Mac, iPad, wearables) sold at scale, the same business model as computer/peripheral makers, even though its margins and attached Services revenue are stronger than typical peers; among the listed groups this is the closest structural match versus noisy alternatives like the 8-firm, negative-margin 'Electronics (Consumer & Office)' group."
+}
