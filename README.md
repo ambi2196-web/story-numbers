@@ -88,6 +88,8 @@ copy .env.example .env
 | Personal, local | Claude Code CLI on your Claude Pro plan | `claude auth login` in a terminal | `LLM_PROVIDER=claude_cli` |
 | Public demo | Gemini free tier | Free key at https://aistudio.google.com/apikey | `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...` |
 
+After setup, **double-click `play.bat`** to play on your own computer with Claude (it opens http://localhost:8501).
+
 `LLM_PROVIDER=auto` uses Claude when the CLI is installed and Gemini otherwise. Without any AI, the valuations, Excel files, requirements and scorecards still work. Command-line export: `.venv/Scripts/python -m app.collect "Maruti Suzuki"`.
 
 To deploy the public demo for free, see [DEPLOY.md](DEPLOY.md).
