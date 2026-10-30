@@ -83,15 +83,22 @@ def cost_of_capital(company: Company, ratios: pd.DataFrame) -> CostOfCapital:
     row = betas[betas["Industry Name"].str.lower() == p["damodaran_industry"].lower()].iloc[0]
     unlevered = float(row.get("Unlevered beta corrected for cash", row["Unlevered beta"]))
     debt, equity = _num(fin.get("total_debt")), _num(p.get("market_cap"))
-    d_e = debt / equity if equity else 0.0
+    if equity > 0:
+        wd = debt / (debt + equity)
+    else:  # no market price (fictional or unlisted): borrow the industry's typical financing mix
+        wd = damodaran.benchmarks(p["damodaran_industry"], p["region"])["debt_to_capital"] if debt > 0 else 0.0
+    d_e = wd / (1 - wd) if wd < 1 else 0.0
     levered = unlevered * (1 + (1 - marginal) * d_e)
 
     rf = market["treasury_rate"]
     # Median of the last three years, so one bad year (a strike, a cyber attack) does not reprice all the debt.
     coverage = ratios.loc["interest_coverage"].dropna().tail(3)
-    rating, spread = synthetic_rating(float(coverage.median()) if len(coverage) else math.inf)
+    if len(coverage):
+        cov = float(coverage.median())
+    else:  # no interest data: safe only if it is profitable
+        cov = math.inf if _num(fin.get("operating_income")) > 0 or not debt else 0.0
+    rating, spread = synthetic_rating(cov)
     kd = rf + country_spread + spread
-    wd = debt / (debt + equity) if debt + equity else 0.0
     ke = rf + levered * erp
     wacc_usd = (1 - wd) * ke + wd * kd * (1 - marginal)
     # Stable growth: beta moves to 1, but a maturing firm never becomes riskier than it is today.
