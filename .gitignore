@@ -6,3 +6,4 @@ __pycache__/
 data/cache/
 data/damodaran/raw/
 output/
+data/game.sqlite

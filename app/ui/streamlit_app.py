@@ -14,6 +14,8 @@ from app.data.ratios import RATIO_FORMATS, RATIO_LABELS, compute
 from app.engine.dcf import solve, value
 from app.engine.defaults import Setup, status_quo
 from app.excel.workbook import build, units
+from app.game import scoring, store
+from app.game.challenges import CHALLENGES, FICTIONAL_TARGET, RANK, fictional_card
 from app.llm import LLMError, get_provider
 from app.story import story_numbers as sn
 from app.story import target as tg
@@ -393,6 +395,165 @@ def target_section(company, setup, profile, scale: float, unit: str):
     return target, setup, reqs, results
 
 
+# ================================================================ game layer
+TAG_ICON = {"Bull": "🐂", "Base": "⚖️", "Bear": "🐻", "Other": "📝"}
+
+
+def celebrate() -> None:
+    """The sidebar leaderboard is drawn before the submit button runs, so rerun to show the new entry."""
+    st.session_state["celebrate"] = True
+    st.rerun()
+
+
+def sidebar():
+    """Player name, challenge picker, how to play and the leaderboard. Returns (player, challenge or None)."""
+    with st.sidebar:
+        st.header("🎮 Play")
+        player = st.text_input("Your name", key="player", placeholder="shown on the leaderboard").strip() or "Guest"
+        pick = st.selectbox("Challenge", ["Free play"] + [c.title for c in CHALLENGES], key="challenge")
+        ch = next((c for c in CHALLENGES if c.title == pick), None)
+        if ch:
+            st.info(f"**{ch.title}**\n\n{ch.brief}\n\n💡 {ch.hint}")
+        with st.expander("How to play", expanded=ch is None):
+            st.markdown("1. **Pick** a company, a fictional one, or a challenge.\n"
+                        "2. **See** what it is worth if nothing changes, and the story today's price tells.\n"
+                        "3. **Tell your story** (or set a target and let the AI find stories).\n"
+                        "4. **Check** the story-vs-reality scorecard: ✅ OK, ⚠️ stretch, 🚩 red flag.\n"
+                        "5. **Save** bull, base and bear scenarios and compare them.\n"
+                        "6. **Score:** points = boldness × plausibility². Big moves every number can defend win.")
+        st.markdown(f"**🏆 Leaderboard** · {ch.title if ch else 'all challenges'}")
+        rows = store.leaderboard(ch.id if ch else None)
+        if rows:
+            st.dataframe(pd.DataFrame(rows).rename(columns=str.capitalize), hide_index=True,
+                         use_container_width=True)
+        else:
+            st.caption("No entries yet: be the first.")
+    return player, ch
+
+
+def save_form(player: str, company, label: str, fields: dict, key: str) -> None:
+    with st.form(key, clear_on_submit=True):
+        c1, c2, c3 = st.columns([3, 1, 1])
+        name = c1.text_input("Scenario name", placeholder=label)
+        tag = c2.selectbox("Case", list(TAG_ICON))
+        if c3.form_submit_button("💾 Save scenario"):
+            p = company.profile
+            store.save_scenario(player=player, symbol=p["symbol"], company=p["name"], name=name or label, tag=tag,
+                                currency=p.get("price_currency"), **fields)
+            st.toast(f"Saved '{name or label}' as {tag}.")
+
+
+def game_panel(company, setup, mode_a, sq_value: float, player: str, ch) -> None:
+    """Points for the current story, the challenge check, saving scenarios and comparing them."""
+    p, a0 = company.profile, setup.assumptions
+    st.markdown("### 🎮 Score it, save it, compare it")
+    if mode_a:
+        story_setup, v, result, (card, score) = mode_a
+        verdict = tg.verdict(card, True)
+        bold, pts = scoring.boldness(v.value_per_share, sq_value), scoring.points(v.value_per_share, sq_value, score)
+        c1, c2, c3 = st.columns(3)
+        c1.progress(bold, text=f"Boldness {bold:.0%} (vs status quo)")
+        c2.progress(score / 100, text=f"Plausibility {score}/100 · 3P: {verdict}")
+        c3.metric("Points", f"{pts:,}", help="1000 × boldness × plausibility². A 3x move (or a fall to a third) "
+                                            "is fully bold; each stretch or red flag costs plausibility.")
+        if ch and ch.symbol:
+            if ch.symbol != p["symbol"]:
+                st.caption(f"This company is not part of the challenge '{ch.title}' (that is {ch.query}).")
+            else:
+                ok, msg = ch.check(v.value_per_share, verdict, a0.price)
+                (st.success if ok else st.warning)(msg)
+                if ok and st.button(f"🏆 Submit to the leaderboard as {player} "
+                                    f"({scoring.challenge_points(score):,} points)", type="primary"):
+                    store.submit(player, ch.id, scoring.challenge_points(score), v.value_per_share, score, verdict,
+                                 result.drivers.headline)
+                    celebrate()
+        path, sa = result.path, story_setup.assumptions
+        save_form(player, company, result.drivers.headline, dict(
+            kind="Your story", value_per_share=v.value_per_share, price=a0.price, status_quo=sq_value,
+            growth=(path["Revenue"].iloc[5] / path["Revenue"].iloc[0]) ** 0.2 - 1, target_margin=sa.target_margin,
+            sales_to_capital=sa.sales_to_capital_1_5, cost_of_capital=sa.cost_of_capital,
+            share_y10=path["Market share"].iloc[10], units_y10=path["Units sold"].iloc[10],
+            unit_name=result.drivers.unit_name, score=score, verdict=verdict, points=pts,
+            headline=result.drivers.headline, drivers=result.drivers.model_dump()), "save_story")
+    else:
+        st.caption("Tell a story above (or fill the drivers yourself) to score it and save it.")
+    if st.button("💾 Save the status quo as a scenario"):
+        store.save_scenario(player=player, symbol=p["symbol"], company=p["name"], name="Status quo", tag="Base",
+                            kind="Status quo", currency=p.get("price_currency"), value_per_share=sq_value,
+                            price=a0.price, status_quo=sq_value, growth=a0.growth_y2_5, target_margin=a0.target_margin,
+                            sales_to_capital=a0.sales_to_capital_1_5, cost_of_capital=a0.cost_of_capital)
+        st.toast("Saved the status quo.")
+    scenarios_section(company, player)
+
+
+def scenarios_section(company, player: str) -> None:
+    p = company.profile
+    saved = store.scenarios(p["symbol"], player)
+    st.markdown(f"#### 📊 {player}'s scenarios for {p['name']}")
+    if not saved:
+        st.caption("No saved scenarios yet. Save a bull, a base and a bear case to compare them side by side.")
+        return
+    order = {"Bull": 0, "Base": 1, "Bear": 2, "Other": 3}
+    saved.sort(key=lambda s: (order.get(s["tag"], 3), -(s["value_per_share"] or 0)))
+
+    def f(x, spec):
+        return "" if x is None else spec.format(x)
+
+    def short(s):
+        name = s["name"] if len(s["name"]) <= 26 else s["name"][:25] + "…"
+        return f"{TAG_ICON.get(s['tag'], '')} {name}"
+    cols = {f"{short(s)} (#{s['id']})": {
+        "Kind": s["kind"], "Value per share": f(max(s["value_per_share"], 0), "{:,.2f}"),
+        "Vs price": f(s["value_per_share"] / s["price"] - 1 if s["price"] else None, "{:+.0%}"),
+        "Revenue growth, years 1-5": f(s["growth"], "{:.1%}"), "Target margin": f(s["target_margin"], "{:.1%}"),
+        "Sales-to-capital": f(s["sales_to_capital"], "{:.2f}x"), "Cost of capital": f(s["cost_of_capital"], "{:.2%}"),
+        "Market share, year 10": f(s["share_y10"], "{:.0%}"),
+        "Units sold, year 10": f(s["units_y10"], "{:,.0f}") + (f" {s['unit_name']}" if s["unit_name"] else ""),
+        "Story score": f(s["score"], "{}/100"), "3P": s["verdict"] or "", "Points": f(s["points"], "{:,}"),
+    } for s in saved}
+    st.dataframe(pd.DataFrame(cols), use_container_width=True)
+    price = saved[0]["price"]
+    chart = pd.DataFrame({"Value per share": [max(s["value_per_share"], 0) for s in saved]},
+                         index=[f"{short(s)} (#{s['id']})" for s in saved])
+    if price:
+        chart["Today's price"] = price
+    st.bar_chart(chart, stack=False, height=260)
+    pick = st.selectbox("Saved scenario", saved, format_func=lambda s: f"#{s['id']} {s['name']}",
+                        label_visibility="collapsed")
+    c1, c2 = st.columns(2)
+    if pick["drivers"] and c1.button("Open in Tell your story"):
+        st.session_state[f"drivers:{p['symbol']}"] = pick["drivers"]
+        st.rerun()
+    if c2.button("🗑 Delete this scenario"):
+        store.delete_scenario(pick["id"])
+        st.rerun()
+
+
+def fictional_challenge(spec, company, valuation, player: str, ch) -> None:
+    if not ch or ch.symbol or ch.query is not None or valuation is None:
+        return
+    st.markdown(f"### 🎮 Challenge: {ch.title}")
+    margin = damodaran.benchmarks(spec.damodaran_industry, company.profile["region"])["operating_margin"]
+    card = fictional_card(spec, margin)
+    score = sn.story_score(card)
+    verdict = tg.verdict(card, True)
+    st.dataframe(card.set_index("Check"), use_container_width=True)
+    if spec.currency.upper() != "INR":
+        st.warning("This challenge is in rupees: set the currency to INR.")
+        return
+    equity = valuation.equity_value
+    hit, believable = equity >= FICTIONAL_TARGET, RANK[verdict] >= RANK[ch.needs]
+    if hit and believable:
+        st.success(f"Challenge met: equity worth ₹{equity / 1e7:,.0f} crore with a {verdict} story.")
+        if st.button(f"🏆 Submit as {player} ({scoring.challenge_points(score):,} points)", type="primary"):
+            store.submit(player, ch.id, scoring.challenge_points(score), equity / 1e7, score, verdict, spec.name)
+            celebrate()
+    else:
+        st.warning("Not yet: " + " and ".join(
+            ([f"equity is ₹{max(equity, 0) / 1e7:,.0f} crore, below ₹1,000 crore"] if not hit else [])
+            + ([f"the story is only {verdict} (no red flags allowed)"] if not believable else [])) + ".")
+
+
 def download(company, setup, valuation, implied, profile, story, name: str, mode_a=None, mode_b=None) -> None:
     your_story, card, score = None, None, None
     if mode_a:  # the file follows your story: its DCF runs on the units x price path
@@ -408,8 +569,13 @@ def download(company, setup, valuation, implied, profile, story, name: str, mode
 # ================================================================ page
 st.title("Story ⇄ Numbers")
 st.caption("Damodaran-style valuation game. Pick a company; every valuation is a story told in numbers.")
+player, challenge = sidebar()
+if st.session_state.pop("celebrate", False):
+    st.balloons()
+    st.toast("🏆 On the leaderboard!")
 mode = st.radio("What do you want to value?", ["A listed company", "A fictional company"], horizontal=True,
-                label_visibility="collapsed")
+                label_visibility="collapsed",
+                index=1 if challenge and challenge.symbol is None and challenge.query is None else 0)
 
 if mode == "A fictional company":
     st.subheader("Build a fictional company")
@@ -464,11 +630,13 @@ if mode == "A fictional company":
     scale, unit = units(spec.currency)
     st.subheader(f"What is {spec.name} worth on this story?")
     valuation, implied, story = valuation_section(company, setup, scale, unit)
+    fictional_challenge(spec, company, valuation, player, challenge)
     download(company, setup, valuation, implied, None, None, "fictional")
     st.caption("Educational tool, not investment advice.")
     st.stop()
 
-query = st.text_input("Company name or ticker", placeholder="e.g. Maruti Suzuki, Tata Motors, Apple")
+query = st.text_input("Company name or ticker", placeholder="e.g. Maruti Suzuki, Tata Motors, Apple",
+                      value=challenge.query if challenge and challenge.query else "")
 if not query:
     st.stop()
 
@@ -541,6 +709,7 @@ valuation, implied, story = valuation_section(company, setup, scale, unit, profi
 mode_a = mode_b = None
 if valuation is not None:
     mode_a = story_section(company, setup, profile, scale, unit, valuation.value_per_share)
+    game_panel(company, setup, mode_a, valuation.value_per_share, player, challenge)
     mode_b = target_section(company, setup, profile, scale, unit)
 download(company, setup, valuation, implied, profile, story, p["symbol"], mode_a, mode_b)
 st.caption("Educational tool, not investment advice.")

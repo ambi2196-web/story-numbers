@@ -43,6 +43,14 @@ Enter a target ("3× in 3 years", a share price or a market cap). If the market 
 
 Any route can be opened in *Tell your story* to edit it. The Excel file gains a *Target* sheet.
 
+### Play (game layer)
+The sidebar has your player name, the challenges, a how-to-play guide and the leaderboard.
+- **Points** = 1000 × boldness × plausibility². Boldness is how far your story moves value from the status quo (3× up or down is fully bold). Plausibility is the story-vs-reality score. Big moves that every number can defend win.
+- **Scenarios:** save any story (or the status quo) as a bull, base or bear case and compare them side by side with a chart. You can reopen any saved story in *Tell your story*.
+- **Challenges:** for example, "Make Paytm worth ₹2,000", "Maruti at ₹15,000" or "A ₹1,000 crore quick-commerce startup". Each sets a value to reach and how believable the story must be on the 3P test. Meet one and submit it to the leaderboard.
+
+Scenarios and the leaderboard are stored locally in `data/game.sqlite`.
+
 ### Company data (all free)
 | Source | Used for |
 |---|---|
