@@ -1,0 +1,21 @@
+id,pass,seconds,detail
+maruti-70-ev,True,60,all checks pass
+maruti-50-in-5,True,39,all checks pass
+maruti-exports,True,87,all checks pass
+maruti-price-war,True,59,all checks pass
+tmpv-india-15,True,48,all checks pass
+tmpv-jlr-margin,True,105,all checks pass
+tmpv-jlr-shrinks,True,80,all checks pass
+eternal-qc-45,True,1,all checks pass
+eternal-food,True,83,all checks pass
+eternal-qc-war,True,55,all checks pass
+apple-services,True,80,all checks pass
+apple-iphone-share,True,38,all checks pass
+apple-price,True,30,all checks pass
+infy-ai,True,63,all checks pass
+infy-share-10,True,101,all checks pass
+infy-squeeze,True,100,all checks pass
+paytm-lending,True,95,all checks pass
+paytm-upi-25,True,87,all checks pass
+nestle-rural,True,73,all checks pass
+nestle-premium,True,72,all checks pass

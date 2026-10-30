@@ -73,7 +73,14 @@ flowchart LR
 .venv/Scripts/python -m app.evals --provider gemini --pause 6
 .venv/Scripts/python -m app.evals --provider claude_cli
 ```
-Latest results are in `evals/results_<provider>.csv`.
+Latest results (October 2026), with details in `evals/results_<provider>.csv`:
+
+| AI backend | Stories passing | Typical time per story |
+|---|---|---|
+| Claude (Sonnet, via the Claude Code CLI) | **20 / 20** | 30–105 s |
+| Gemini free tier | **19 / 20** | 13–95 s |
+
+Gemini's one miss: it put Maruti's market share today at 47.5% (the actual figure is about 41%). The scorecard shows that number and the player can edit it.
 
 ## Run it yourself (Windows)
 ```bash
